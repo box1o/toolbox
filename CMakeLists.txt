@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 4.2.0)
 
-project(cc VERSION 0.0.1 LANGUAGES C CXX)
+project(ct VERSION 0.0.1 LANGUAGES C CXX)
 
 # Options
 option(CT_WARNINGS_AS_ERRORS "Treat warnings as errors" OFF)
@@ -22,7 +22,7 @@ include(CTModule)
 
 message(STATUS "")
 message(STATUS "╔═══════════════════════════════════════════════════════════════╗")
-message(STATUS "║                cc Configuration Summary                       ║")
+message(STATUS "║                ct Configuration Summary                       ║")
 message(STATUS "╚═══════════════════════════════════════════════════════════════╝")
 message(STATUS "  Version:              ${PROJECT_VERSION}")
 message(STATUS "  Build type:           ${CMAKE_BUILD_TYPE}")
@@ -32,6 +32,19 @@ message(STATUS "  Install prefix:       ${CMAKE_INSTALL_PREFIX}")
 message(STATUS "")
 
 add_subdirectory(3rdparty)
+
+
+
+set(MODULES_DIR "${CMAKE_SOURCE_DIR}/modules")
+file(GLOB CHILD_FOLDERS RELATIVE "${MODULES_DIR}" "${MODULES_DIR}/*")
+
+foreach(FOLDER ${CHILD_FOLDERS})
+    if(IS_DIRECTORY "${MODULES_DIR}/${FOLDER}")
+        message(STATUS "Module ../${FOLDER}")
+        add_subdirectory("${MODULES_DIR}/${FOLDER}")
+    endif()
+endforeach()
+
 
 
 add_subdirectory(studio)

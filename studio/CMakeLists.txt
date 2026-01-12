@@ -51,6 +51,7 @@ target_include_directories(${STUDIO_NAME}
 target_link_libraries(${STUDIO_NAME}
     PRIVATE
     ct::base
+    ct::gfx
 )
 
 

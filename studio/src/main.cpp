@@ -1,31 +1,43 @@
+#include "ct/gfx/api/device.hpp"
 #include <ct/base/base.hpp>
-#include <string>
+#include <ct/gfx/gfx.hpp>
 
 
-ct::result<std::string> test(){
-    if (true){
-        return "Hello World";
-    } else {
-        return ct::err(ct::ErrorCode::UNKNOWN_ERROR, "An unknown error occurred");
-    }
-}
 
 using namespace ct;
 
-int main(int argc, char* argv[]) {
+int main(int /*argc*/, char* /*argv*/[]) {
     log::Configure("studio", ct::log::Level::Trace);
 
-    for (int i = 0; i < argc; ++i) {
-        log::Info("Argument {} : {}\n", i, argv[i]);
+
+    auto window = gfx::Window();
+
+    auto res = gfx::Device::Create({
+        .backend = gfx::DeviceBackend::Vulkan,
+    }); 
+    if (!res) {
+        log::Error("Failed to create device: {}", res.error().Message());
+        return -1;
     }
-
-    log::Error("This is an error message with code {}", 404);
-    log::Critical("Critical failure: {}", "Out of memory");
+    auto device = res.value();
 
 
-    if (auto result = test(); result.has_value()) {
-        log::Info("Test succeeded with message: {}", result.value());
-    }
+
+    // same api for the other things like swapchain 
+    // create the Info struct 
+    // {
+    //     pView // pointer the the texture to display ... 
+    //     //not shure about other settings
+    //
+    // }
+    // to create use gfx::Swapchain::Create(device, {info});
+    // same for the resources buffers .. also take a shared ptr to the device
+
+
+
+
+
+
 
 
     return 0;

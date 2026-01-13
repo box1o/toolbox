@@ -24,7 +24,7 @@ class Window{
 public:
     using ResizeCallback = std::function<void(u32 width, u32 height)>;
 
-    Window();
+    Window(const WindowInfo& info);
     ~Window() = default;
 
     // [[nodiscard]] virtual const std::string& GetTitle() const noexcept = 0;

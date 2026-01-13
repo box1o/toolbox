@@ -1,32 +1,27 @@
 #include "application.hpp"
 #include "ct/base/logger/logger.hpp"
-#include <cstdlib>
+#include "ct/base/types/types.hpp"
+#include "ct/gfx/engine/camera.hpp"
+#include "ct/gfx/engine/renderer.hpp"
 
+#include <vulkan/vulkan.h>
 
 
 namespace ct {
 
+
 Application::Application(const ApplicationInfo& info)
 :mInfo(info){
     log::Configure("studio", ct::log::Level::Trace);
-
-    gfx::WindowInfo wInfo{ };
-    mWindow = createScope<gfx::Window>(wInfo);
-
+    gfx::RendererInfo rInfo{};
+    mRenderer = createScope<gfx::Renderer>(rInfo);
 
 
-    //Create device
-    gfx::DeviceInfo dInfo{};
-    dInfo.validate = true;
-    dInfo.verbose = false;
-    dInfo.backend = gfx::DeviceBackend::Vulkan;
-    auto res = gfx::Device::Create(dInfo); 
-    if (!res) {
-        log::Error("Failed to create device: {}", res.error().Message());
-        std::abort();
-    }
-    mDevice = res.value();
 
+
+    gfx::CameraInfo cInfo{};
+    cInfo.name = "main";
+    mCamera = createRef<gfx::Camera>(cInfo);
 
 
 }
@@ -35,8 +30,10 @@ Application::~Application(){}
 
 void Application::Run(){
     while(mRunning){
-        // log::Info("Application running...");
+        mRenderer->Begin(mCamera);
 
+
+        mRenderer->End();
     }
 }
 

@@ -23,6 +23,10 @@ class Device {
 public:
     virtual ~Device() = default;
 
+    virtual void* GetInstanceHandle() = 0;
+    virtual void* GetPhysicalDeviceHandle() = 0;
+    virtual void* GetDeviceHandle() = 0;
+
     static result<ref<Device>> Create(const DeviceInfo& info);
 
 protected:

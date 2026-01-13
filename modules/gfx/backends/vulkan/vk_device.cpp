@@ -24,6 +24,20 @@ result<ref<Device>> VKDeviceImpl::Create(const DeviceInfo& info) {
             info
         );
     }
+
+
+
+    device->mPhysicalDevice = device->PickPhysicalDevice();
+    if (device->mPhysicalDevice == VK_NULL_HANDLE) {
+        return err(
+            ErrorCode::GRAPHICS_RESOURCE_CREATION_FAILED,
+            "Failed to pick Vulkan Physical Device"
+        );
+    }
+
+
+
+
     return device;
 }
 
@@ -79,6 +93,55 @@ VkInstance VKDeviceImpl::CreateInstance() {
     log::Info("Vulkan Instance created");
     return instance;
 }
+
+
+
+
+VkPhysicalDevice VKDeviceImpl::PickPhysicalDevice() {
+    u32 deviceCount = 0;
+    vkEnumeratePhysicalDevices(mInstance, &deviceCount, nullptr);
+    if (deviceCount == 0) {
+        log::Critical("[vk] No Vulkan physical devices found.");
+        std::abort();
+    }
+
+    std::vector<VkPhysicalDevice> devices(deviceCount);
+    vkEnumeratePhysicalDevices(mInstance, &deviceCount, devices.data());
+
+    VkPhysicalDevice bestDevice = VK_NULL_HANDLE;
+    u32 bestScore = 0;
+
+    for (VkPhysicalDevice dev : devices) {
+        VkPhysicalDeviceProperties props{};
+        vkGetPhysicalDeviceProperties(dev, &props);
+
+        if (!detail::IsDeviceSuitable(dev)) {
+            log::Info( "[vk] Device '{}' rejected (missing required capabilities).", props.deviceName); 
+            continue;
+        }
+
+        const u32 score = detail::ScorePhysicalDevice(dev);
+        if (score > bestScore) {
+            bestScore = score;
+            bestDevice = dev;
+        }
+    }
+
+    if (bestDevice == VK_NULL_HANDLE) {
+        log::Critical("[vk] No suitable Vulkan device found.");
+        return VK_NULL_HANDLE;
+    }
+
+
+    VkPhysicalDeviceProperties props{};
+    vkGetPhysicalDeviceProperties(bestDevice, &props);
+    log::Info("[vk] Selected physical device: {}", props.deviceName);
+    return bestDevice;
+}
+
+
+
+
 
 
 

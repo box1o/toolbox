@@ -1,8 +1,8 @@
 #pragma once
+#include "ct/gfx/engine/camera.hpp"
+#include "ct/gfx/engine/renderer.hpp"
 #include <string>
 
-#include "ct/base/base.hpp"
-#include "ct/gfx/gfx.hpp"
 
 namespace ct {
 
@@ -20,8 +20,8 @@ public:
 
 private:
     ApplicationInfo  mInfo;
-    scope<gfx::Window> mWindow;
-    ref<gfx::Device> mDevice;
+    scope<gfx::Renderer> mRenderer;
+    ref<gfx::Camera> mCamera;
 
     bool mRunning{true};
 

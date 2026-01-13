@@ -9,17 +9,23 @@ class VKDeviceImpl final: public Device {
 public:
     ~VKDeviceImpl() override;
 
-    static result<ref<Device>> Create(const DeviceInfo& info);
+    void* GetInstanceHandle()       override{ return mInstance;};
+    void* GetPhysicalDeviceHandle() override { return mPhysicalDevice;};
+    void* GetDeviceHandle()         override { return nullptr;};
 
+    static result<ref<Device>> Create(const DeviceInfo& info);
 private:
     explicit VKDeviceImpl(const DeviceInfo& info);
 
     VkInstance CreateInstance();
+    VkPhysicalDevice PickPhysicalDevice();
 
 private:
     DeviceInfo mInfo;
     VkInstance mInstance{VK_NULL_HANDLE};
     VkDebugUtilsMessengerEXT mDebugMessenger{VK_NULL_HANDLE};
+
+    VkPhysicalDevice mPhysicalDevice{VK_NULL_HANDLE};
 };
 
 } 

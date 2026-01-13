@@ -321,4 +321,90 @@ void DestroyDebugMessenger(VkInstance mInstance, VkDebugUtilsMessengerEXT& mDebu
 }
 
 
+
+bool HasQueueFamilyFlags(VkPhysicalDevice device, VkQueueFlags required) {
+    u32 qfCount = 0;
+    vkGetPhysicalDeviceQueueFamilyProperties(device, &qfCount, nullptr);
+    if (qfCount == 0) {
+        return false;
+    }
+
+    std::vector<VkQueueFamilyProperties> qfps(qfCount);
+    vkGetPhysicalDeviceQueueFamilyProperties(device, &qfCount, qfps.data());
+
+    for (u32 i = 0; i < qfCount; ++i) {
+        if (qfps[i].queueCount == 0) {
+            continue;
+        }
+        if ((qfps[i].queueFlags & required) == required) {
+            return true;
+        }
+    }
+    return false;
+}
+
+bool IsDeviceSuitable(VkPhysicalDevice device) {
+    if (!HasQueueFamilyFlags(device, VK_QUEUE_GRAPHICS_BIT)) {
+        return false;
+    }
+    if (!IsDeviceExtensionAvailable(device, VK_KHR_SWAPCHAIN_EXTENSION_NAME)) {
+        return false;
+    }
+    return true;
+}
+
+
+
+u32 ScorePhysicalDevice(VkPhysicalDevice device) {
+    VkPhysicalDeviceProperties props{};
+    VkPhysicalDeviceMemoryProperties mem{};
+    vkGetPhysicalDeviceProperties(device, &props);
+    vkGetPhysicalDeviceMemoryProperties(device, &mem);
+
+    u32 score = 0;
+
+    switch (props.deviceType) {
+    case VK_PHYSICAL_DEVICE_TYPE_DISCRETE_GPU:
+        score += 10000;
+        break;
+    case VK_PHYSICAL_DEVICE_TYPE_INTEGRATED_GPU:
+        score += 2000;
+        break;
+    case VK_PHYSICAL_DEVICE_TYPE_VIRTUAL_GPU:
+        score += 500;
+        break;
+    case VK_PHYSICAL_DEVICE_TYPE_CPU:
+        score += 100;
+        break;
+    default:
+        break;
+    }
+
+    for (u32 i = 0; i < mem.memoryHeapCount; ++i) {
+        if (mem.memoryHeaps[i].flags & VK_MEMORY_HEAP_DEVICE_LOCAL_BIT) {
+            const u64 gib = mem.memoryHeaps[i].size / (1024ull * 1024ull * 1024ull);
+            score += static_cast<u32>(gib) * 100;
+        }
+    }
+
+    const u32 major = VK_VERSION_MAJOR(props.apiVersion);
+    const u32 minor = VK_VERSION_MINOR(props.apiVersion);
+    if (major > 1 || (major == 1 && minor >= 3)) {
+        score += 500;
+    }
+
+    if (IsDeviceExtensionAvailable(device, VK_KHR_SWAPCHAIN_EXTENSION_NAME)) {
+        score += 1000;
+    }
+    if (IsDeviceExtensionAvailable(device, VK_KHR_RAY_TRACING_PIPELINE_EXTENSION_NAME)) {
+        score += 2000;
+    }
+    if (IsDeviceExtensionAvailable(device, VK_EXT_MESH_SHADER_EXTENSION_NAME)) {
+        score += 1000;
+    }
+
+    return score;
+}
+
+
 } // namespace ct::gfx::vk::detail

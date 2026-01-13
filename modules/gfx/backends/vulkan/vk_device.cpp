@@ -16,6 +16,14 @@ result<ref<Device>> VKDeviceImpl::Create(const DeviceInfo& info) {
         );
     }
 
+
+    if (info.validate) {
+        detail::SetupDebugMessenger(
+            device->mInstance,
+            device->mDebugMessenger,
+            info
+        );
+    }
     return device;
 }
 
@@ -23,6 +31,8 @@ VKDeviceImpl::VKDeviceImpl(const DeviceInfo& info)
 : mInfo(info) {}
 
 VKDeviceImpl::~VKDeviceImpl() {
+    detail::DestroyDebugMessenger( mInstance, mDebugMessenger);
+
     if (mInstance != VK_NULL_HANDLE) {
         vkDestroyInstance(mInstance, nullptr);
         mInstance = VK_NULL_HANDLE;
@@ -43,14 +53,11 @@ VkInstance VKDeviceImpl::CreateInstance() {
     auto layers = detail::CollectValidationLayers(mInfo.validate);
     auto exts   = detail::CollectInstanceExtensions(mInfo.validate);
 
-
     // Debug stuff 
     VkDebugUtilsMessengerCreateInfoEXT dbgCi{};
     if (mInfo.validate) {
         detail::PopulateDebugCreateInfo(dbgCi, mInfo);
     }
-
-
 
     VkInstanceCreateInfo ci{};
     ci.sType                   = VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO;
@@ -59,19 +66,21 @@ VkInstance VKDeviceImpl::CreateInstance() {
     ci.ppEnabledLayerNames     = layers.data();
     ci.enabledExtensionCount   = static_cast<u32>(exts.size());
     ci.ppEnabledExtensionNames = exts.data();
-
-    // ci.pNext = info_.validation ? &dbgCi : nullptr;
+    ci.pNext = mInfo.validate? &dbgCi : nullptr;
 
     VkInstance instance = VK_NULL_HANDLE;
     VkResult res = vkCreateInstance(&ci, nullptr, &instance);
     if (res != VK_SUCCESS) {
         log::Critical( "vkCreateInstance failed: {}", static_cast<u32>(res)
-        );
+                      );
         return VK_NULL_HANDLE;
     }
 
     log::Info("Vulkan Instance created");
     return instance;
 }
+
+
+
 
 }

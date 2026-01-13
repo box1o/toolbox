@@ -19,6 +19,7 @@ private:
 private:
     DeviceInfo mInfo;
     VkInstance mInstance{VK_NULL_HANDLE};
+    VkDebugUtilsMessengerEXT mDebugMessenger{VK_NULL_HANDLE};
 };
 
 } 

@@ -192,9 +192,6 @@ std::vector<const char*> CollectInstanceExtensions(bool validation) {
         AppendIfAvailable(extensions, VK_EXT_DEBUG_REPORT_EXTENSION_NAME);
     }
 
-    // ========================================================================
-    // Additional Useful Extensions
-    // ========================================================================
 
     // Physical device properties (useful for querying features)
     AppendIfAvailable(extensions, VK_KHR_GET_PHYSICAL_DEVICE_PROPERTIES_2_EXTENSION_NAME);
@@ -219,10 +216,6 @@ std::vector<const char*> CollectInstanceExtensions(bool validation) {
 
     // Device group support
     AppendIfAvailable(extensions, VK_KHR_DEVICE_GROUP_CREATION_EXTENSION_NAME);
-
-    // ========================================================================
-    // Validation
-    // ========================================================================
 
     if (extensions.empty()) {
         log::Critical("[vk] No usable Vulkan instance extensions found");
@@ -272,6 +265,60 @@ void PopulateDebugCreateInfo(VkDebugUtilsMessengerCreateInfoEXT& ci, const Devic
 }
 
 
+
+PFN_vkCreateDebugUtilsMessengerEXT LoadCreateDebugUtilsMessenger(VkInstance instance) {
+    return reinterpret_cast<PFN_vkCreateDebugUtilsMessengerEXT>(
+        vkGetInstanceProcAddr(instance, "vkCreateDebugUtilsMessengerEXT"));
+}
+
+PFN_vkDestroyDebugUtilsMessengerEXT LoadDestroyDebugUtilsMessenger(VkInstance instance) {
+    return reinterpret_cast<PFN_vkDestroyDebugUtilsMessengerEXT>(
+        vkGetInstanceProcAddr(instance, "vkDestroyDebugUtilsMessengerEXT"));
+}
+
+
+
+
+void SetupDebugMessenger(VkInstance mInstance, VkDebugUtilsMessengerEXT& mDebugMessenger, const DeviceInfo& mInfo) {
+    if (mInstance == VK_NULL_HANDLE) {
+        log::Critical("[vk] SetupDebugMessenger called with null VkInstance.");
+        std::abort();
+    }
+    if (mDebugMessenger != VK_NULL_HANDLE) {
+        return;
+    }
+
+    auto* fn = detail::LoadCreateDebugUtilsMessenger(mInstance);
+    if (!fn) {
+        log::Critical("[vk] vkCreateDebugUtilsMessengerEXT not present (missing extension?).");
+        std::abort();
+    }
+
+    VkDebugUtilsMessengerCreateInfoEXT ci{};
+    detail::PopulateDebugCreateInfo(ci, mInfo);
+
+    const VkResult r = fn(mInstance, &ci, nullptr, &mDebugMessenger);
+    if (r != VK_SUCCESS || mDebugMessenger == VK_NULL_HANDLE) {
+        log::Critical("[vk] vkCreateDebugUtilsMessengerEXT failed: {}", static_cast<int>(r));
+        std::abort();
+    }
+
+    log::Info("[vk] Vulkan debug messenger created successfully");
+}
+
+
+
+void DestroyDebugMessenger(VkInstance mInstance, VkDebugUtilsMessengerEXT& mDebugMessenger) {
+    if (mInstance == VK_NULL_HANDLE || mDebugMessenger == VK_NULL_HANDLE) {
+        return;
+    }
+
+    auto* fn = detail::LoadDestroyDebugUtilsMessenger(mInstance);
+    if (fn) {
+        fn(mInstance, mDebugMessenger, nullptr);
+    }
+    mDebugMessenger = VK_NULL_HANDLE;
+}
 
 
 } // namespace ct::gfx::vk::detail

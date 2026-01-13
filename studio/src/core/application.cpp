@@ -18,6 +18,7 @@ Application::Application(const ApplicationInfo& info)
     //Create device
     gfx::DeviceInfo dInfo{};
     dInfo.validate = true;
+    dInfo.verbose = false;
     dInfo.backend = gfx::DeviceBackend::Vulkan;
     auto res = gfx::Device::Create(dInfo); 
     if (!res) {

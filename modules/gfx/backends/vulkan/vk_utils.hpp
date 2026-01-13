@@ -21,6 +21,14 @@ std::vector<const char*> CollectValidationLayers(bool enable);
 std::vector<const char*> CollectInstanceExtensions(bool validation);
 
 
-void PopulateDebugCreateInfo(VkDebugUtilsMessengerCreateInfoEXT& ci, const DeviceInfo& info) ;
+void PopulateDebugCreateInfo(VkDebugUtilsMessengerCreateInfoEXT& ci, const DeviceInfo& info)
+;
+
+
+PFN_vkCreateDebugUtilsMessengerEXT LoadCreateDebugUtilsMessenger(VkInstance instance);
+PFN_vkDestroyDebugUtilsMessengerEXT LoadDestroyDebugUtilsMessenger(VkInstance instance);
+
+void SetupDebugMessenger(VkInstance mInstance, VkDebugUtilsMessengerEXT& mDebugMessenger, const DeviceInfo& mInfo);
+void DestroyDebugMessenger(VkInstance mInstance, VkDebugUtilsMessengerEXT& mDebugMessenger);
 
 }

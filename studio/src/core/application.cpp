@@ -16,9 +16,6 @@ Application::Application(const ApplicationInfo& info)
     gfx::RendererInfo rInfo{};
     mRenderer = createScope<gfx::Renderer>(rInfo);
 
-
-
-
     gfx::CameraInfo cInfo{};
     cInfo.name = "main";
     mCamera = createRef<gfx::Camera>(cInfo);

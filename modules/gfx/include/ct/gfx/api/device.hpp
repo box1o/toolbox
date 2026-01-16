@@ -19,13 +19,26 @@ struct DeviceInfo {
     DeviceBackend backend{DeviceBackend::Vulkan};
 };
 
+
+enum class QueueType : u8 {
+    Graphics,
+    Compute,
+    Transfer,
+    Present,
+};
+
 class Device {
 public:
     virtual ~Device() = default;
 
-    virtual void* GetInstanceHandle() = 0;
-    virtual void* GetPhysicalDeviceHandle() = 0;
-    virtual void* GetDeviceHandle() = 0;
+    [[nodiscard]] virtual void* GetInstanceHandle() = 0;
+    [[nodiscard]] virtual void* GetPhysicalDeviceHandle() = 0;
+    [[nodiscard]] virtual void* GetDeviceHandle() = 0;
+
+    [[nodiscard]] virtual void* GetQueueHandle(QueueType type) const = 0;
+    [[nodiscard]] virtual u32 GetQueueFamilyIndex(QueueType type) const = 0;
+
+
 
     static result<ref<Device>> Create(const DeviceInfo& info);
 

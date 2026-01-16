@@ -26,8 +26,11 @@ Renderer::Renderer(const RendererInfo& info)
 
 
 
-void Renderer::Begin(const ref<Camera>& camera){}
-void Renderer::End(){}
+void Renderer::Begin(const ref<Camera>& camera){
+}
+
+void Renderer::End(){
+}
 
 
 

@@ -18,40 +18,34 @@ static const char* ToString(QueueType t) noexcept {
     return "Unknown";
 }
 
-result<ref<Device>> VKDeviceImpl::Create(const DeviceInfo& info) {
-    ref<VKDeviceImpl> device(new VKDeviceImpl(info));
 
-    device->mInstance = device->CreateInstance();
-    if (device->mInstance == VK_NULL_HANDLE) {
-        return err(ErrorCode::GRAPHICS_RESOURCE_CREATION_FAILED,
-                   "Failed to create Vulkan instance");
+VKDeviceImpl::VKDeviceImpl(const DeviceInfo& info)
+    : mInfo(info) {
+
+    mInstance = CreateInstance();
+    if (mInstance == VK_NULL_HANDLE) {
+        log::Critical("[vk] Failed to create Vulkan instance.");
+        std::abort();
     }
 
     if (info.validate) {
-        detail::SetupDebugMessenger(device->mInstance, device->mDebugMessenger, info);
+        detail::SetupDebugMessenger(mInstance, mDebugMessenger, info);
     }
 
-    device->mPhysicalDevice = device->PickPhysicalDevice();
-    if (device->mPhysicalDevice == VK_NULL_HANDLE) {
-        return err(ErrorCode::GRAPHICS_RESOURCE_CREATION_FAILED,
-                   "Failed to pick Vulkan physical device");
+    mPhysicalDevice = PickPhysicalDevice();
+    if (mPhysicalDevice == VK_NULL_HANDLE) {
+        log::Critical("[vk] Failed to pick a suitable physical device.");
+        std::abort();
     }
 
-    device->queueFamilyIndices_ = device->QueryQueueFamilies(device->mPhysicalDevice);
-    if (!device->queueFamilyIndices_.HasGraphics() || !device->queueFamilyIndices_.IsComplete()) {
-        return err(ErrorCode::GRAPHICS_RESOURCE_CREATION_FAILED,
-                   "Failed to resolve required Vulkan queue families");
+    queueFamilyIndices_ = QueryQueueFamilies(mPhysicalDevice);
+    if (!queueFamilyIndices_.HasGraphics() || !queueFamilyIndices_.IsComplete()) {
+        log::Critical("[vk] Failed to resolve required queue families.");
+        std::abort();
     }
 
-    // NOTE: Logical device + vkGetDeviceQueue not shown in your snippet.
-    // graphicsQueue_/computeQueue_/transferQueue_ will remain VK_NULL_HANDLE until you create VkDevice.
-    // This code is now safe against optional access, but queue handles will be null until device creation.
-
-    return device;
+    log::Info("[vk] Vulkan device initialized successfully.");
 }
-
-VKDeviceImpl::VKDeviceImpl(const DeviceInfo& info)
-    : mInfo(info) {}
 
 VKDeviceImpl::~VKDeviceImpl() {
     detail::DestroyDebugMessenger(mInstance, mDebugMessenger);
@@ -131,7 +125,6 @@ VkPhysicalDevice VKDeviceImpl::PickPhysicalDevice() {
 
     if (bestDevice == VK_NULL_HANDLE) {
         log::Critical("[vk] No suitable Vulkan device found.");
-        return VK_NULL_HANDLE;
     }
 
     VkPhysicalDeviceProperties props{};
@@ -245,7 +238,6 @@ void* VKDeviceImpl::GetQueueHandle(QueueType type) const {
         log::Critical("[vk] Present queue depends on VkSurfaceKHR; resolve in Surface/Swapchain layer.");
         std::abort();
     }
-
     // NOTE: These are VK_NULL_HANDLE until you create VkDevice and call vkGetDeviceQueue.
     switch (type) {
     case QueueType::Graphics: return reinterpret_cast<void*>(graphicsQueue_);

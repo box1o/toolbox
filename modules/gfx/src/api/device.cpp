@@ -1,16 +1,19 @@
 #include "ct/gfx/api/device.hpp"
 #include "../../backends/vulkan/vk_device.hpp"
+#include "ct/base/types/types.hpp"
 
 namespace ct::gfx {
 
-result<ref<Device>> Device::Create(const DeviceInfo& info) {
+ref<Device> Device::Create(const DeviceInfo& info) {
     switch (info.backend) {
         case DeviceBackend::Vulkan:
-            return vk::VKDeviceImpl::Create(info);
+            return createRef<vk::VKDeviceImpl>(info);
         case DeviceBackend::Metal:
-            return err( ErrorCode::GRAPHICS_UNSUPPORTED_API, "Metal backend is not implemented yet");
+            log::Critical("Metal backend is not implemented yet");
+            std::abort();
         default:
-            return err( ErrorCode::GRAPHICS_UNSUPPORTED_API, "Unsupported graphics backend");
+            log::Critical("Unsupported graphics backend");
+            std::abort();
     }
 }
 

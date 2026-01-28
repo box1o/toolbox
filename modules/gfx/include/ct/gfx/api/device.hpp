@@ -40,7 +40,7 @@ public:
 
 
 
-    static result<ref<Device>> Create(const DeviceInfo& info);
+    static ref<Device> Create(const DeviceInfo& info);
 
 protected:
     Device() = default;

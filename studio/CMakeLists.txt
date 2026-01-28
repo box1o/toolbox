@@ -28,8 +28,8 @@ file(GLOB_RECURSE STUDIO_SOURCES
 )
 
 add_executable(${STUDIO_NAME}
-        ${STUDIO_HEADERS}
-        ${STUDIO_SOURCES}
+    ${STUDIO_HEADERS}
+    ${STUDIO_SOURCES}
 )
 
 target_compile_features(${STUDIO_NAME} PRIVATE cxx_std_23)
@@ -47,48 +47,70 @@ target_include_directories(${STUDIO_NAME}
         ${CMAKE_CURRENT_SOURCE_DIR}
 )
 
+set(STUDIO_DEPS
+    ct::base
+    ct::gfx
+    ct::vision
+    ct::math
+)
+
+find_package(OpenCV REQUIRED COMPONENTS
+    core
+    imgproc
+    highgui
+    videoio
+    features2d
+)
+
+if(OpenCV_FOUND)
+    message(STATUS "OpenCV found, adding to studio dependencies")
+    # Keep your syntax: extend STUDIO_DEPS with OpenCV libs
+    list(APPEND STUDIO_DEPS ${OpenCV_LIBS})
+else()
+    message(FATAL_ERROR "OpenCV not found, but is required for studio")
+endif()
 
 target_link_libraries(${STUDIO_NAME}
     PRIVATE
-    ct::base
-    ct::gfx
+        ${STUDIO_DEPS}
 )
 
-
+target_include_directories(${STUDIO_NAME}
+    PRIVATE
+        ${OpenCV_INCLUDE_DIRS}
+)
 
 set_target_properties(${STUDIO_NAME} PROPERTIES
-        OUTPUT_NAME "studio"
-        RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/bin"
+    OUTPUT_NAME "studio"
+    RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/bin"
 )
 
 if(WIN32)
     set_target_properties(${STUDIO_NAME}
-            PROPERTIES WIN32_EXECUTABLE ON
+        PROPERTIES WIN32_EXECUTABLE ON
     )
 elseif(APPLE)
     set_target_properties(${STUDIO_NAME}
-            PROPERTIES MACOSX_BUNDLE ON
+        PROPERTIES MACOSX_BUNDLE ON
     )
 endif()
 
-
-
 install(TARGETS ${STUDIO_NAME}
-        RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
-        BUNDLE  DESTINATION ${CMAKE_INSTALL_BINDIR}
+    RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
+    BUNDLE  DESTINATION ${CMAKE_INSTALL_BINDIR}
 )
 
 if(EXISTS "${STUDIO_RES_DIR}")
     install(
-            DIRECTORY ${STUDIO_RES_DIR}/
-            DESTINATION ${CMAKE_INSTALL_DATADIR}/ct
+        DIRECTORY ${STUDIO_RES_DIR}/
+        DESTINATION ${CMAKE_INSTALL_DATADIR}/ct
     )
 
     add_custom_command(
-            TARGET ${STUDIO_NAME}
-            POST_BUILD
-            COMMAND ${CMAKE_COMMAND} -E copy_directory
-                    ${STUDIO_RES_DIR}
-                    ${CMAKE_BINARY_DIR}/bin/resources
+        TARGET ${STUDIO_NAME}
+        POST_BUILD
+        COMMAND ${CMAKE_COMMAND} -E copy_directory
+            ${STUDIO_RES_DIR}
+            ${CMAKE_BINARY_DIR}/bin/resources
     )
 endif()

@@ -20,6 +20,7 @@ struct QueueFamilyIndices {
 
 class VKDeviceImpl final : public Device {
 public:
+    VKDeviceImpl(const DeviceInfo& info);
     ~VKDeviceImpl() override;
 
     void* GetInstanceHandle() override { return mInstance; }
@@ -33,10 +34,8 @@ public:
     [[nodiscard]] VkQueue GetComputeQueue() const { return computeQueue_; }
     [[nodiscard]] VkQueue GetTransferQueue() const { return transferQueue_; }
 
-    static result<ref<Device>> Create(const DeviceInfo& info);
 
 private:
-    explicit VKDeviceImpl(const DeviceInfo& info);
 
     VkInstance CreateInstance();
     VkPhysicalDevice PickPhysicalDevice();

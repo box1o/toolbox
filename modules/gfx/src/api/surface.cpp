@@ -19,8 +19,9 @@ wgpu::TextureFormat SelectFormat(
     [[maybe_unused]] const wgpu::Surface& surface,
     [[maybe_unused]] const wgpu::Adapter& adapter) {
 #ifdef WEBGPU_BACKEND_EMSCRIPTEN
-    //NOTE: Browser prefers BGRA8Unorm, avoids extra copy
-    return wgpu::TextureFormat::BGRA8Unorm;
+    // NOTE: Web backends commonly prefer RGBA8Unorm for canvas presentation.
+    // Using the preferred format avoids an extra conversion copy.
+    return wgpu::TextureFormat::RGBA8Unorm;
 #else
     wgpu::SurfaceCapabilities caps;
     surface.GetCapabilities(adapter, &caps);

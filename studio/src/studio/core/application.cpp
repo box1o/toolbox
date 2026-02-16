@@ -1,31 +1,27 @@
-#include "application.hpp"
+#include "studio/core/application.hpp"
 
-#if defined(__EMSCRIPTEN__)
-#include <emscripten/emscripten.h>
-#endif
-using namespace ct;
-
+namespace studio {
 Application::Application() {
-    mWindow = TRY(ct::Window::Create({.title = "toolbox", .width = 1080, .height = 720}));
-    mDevice = TRY(ct::Device::Create({.validate = true, .verbose = true}));
-
-    mSurface = TRY(ct::Surface::Create(mWindow, mDevice,
-        {
-            .presentMode = ct::PresentMode::VSync,
-            .enableDepth = true,
-        }));
+    mWindow = TRY(Window::Create());
+    mDevice = TRY(Device::Create());
+    mSurface = TRY(Surface::Create(mWindow, mDevice, {}));
 }
 
 Application::~Application() {}
 
-void Application::Run() {
+bool Application::Update() {
     mWindow->PollEvents();
+    if (mWindow->ShouldClose()) {
+        return true;
+    }
 
     auto frame = TRY(mSurface->BeginFrame());
 
+    // Create encoder
     wgpu::CommandEncoderDescriptor encDesc{};
     auto encoder = mDevice->GetDevice().CreateCommandEncoder(&encDesc);
 
+    // Create render pass
     wgpu::RenderPassColorAttachment colorAttachment{};
     colorAttachment.view = frame.colorView;
     colorAttachment.loadOp = wgpu::LoadOp::Clear;
@@ -37,7 +33,6 @@ void Application::Run() {
     depthAttachment.depthLoadOp = wgpu::LoadOp::Clear;
     depthAttachment.depthStoreOp = wgpu::StoreOp::Store;
     depthAttachment.depthClearValue = 1.0f;
-    // NOTE: Required when format has stencil aspect (Depth24PlusStencil8)
     depthAttachment.stencilLoadOp = wgpu::LoadOp::Clear;
     depthAttachment.stencilStoreOp = wgpu::StoreOp::Store;
     depthAttachment.stencilClearValue = 0;
@@ -49,25 +44,16 @@ void Application::Run() {
         passDesc.depthStencilAttachment = &depthAttachment;
     }
 
+    // Create render pass
     auto pass = encoder.BeginRenderPass(&passDesc);
-    // ... draw calls ...
     pass.End();
 
     auto commands = encoder.Finish();
-
     mDevice->GetQueue().Submit(1, &commands);
 
+    // Present
     mSurface->Present();
-};
-
-void Application::Spin() {
-#if defined(__EMSCRIPTEN__)
-    emscripten_set_main_loop_arg(
-        [](void* arg) { static_cast<Application*>(arg)->Run(); }, this, 0, true);
-#else
-
-    while (!mWindow->ShouldClose()) {
-        Run();
-    }
-#endif
+    return false;
 }
+
+} // namespace studio

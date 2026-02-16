@@ -80,7 +80,7 @@ bool Device::CreateAdapter() {
         });
 
 #ifdef WEBGPU_BACKEND_EMSCRIPTEN
-    //NOTE: Yield to JS event loop so the promise resolves
+    // NOTE: Yield to JS event loop so the promise resolves
     while (!state.done) {
         emscripten_sleep(10);
     }
@@ -109,6 +109,7 @@ bool Device::CreateAdapter() {
 }
 
 bool Device::CreateDevice(const DeviceInfo& info) {
+    (void)info;
     wgpu::DeviceDescriptor deviceDesc{};
 
     deviceDesc.SetDeviceLostCallback(wgpu::CallbackMode::AllowSpontaneous,
@@ -132,9 +133,16 @@ bool Device::CreateDevice(const DeviceInfo& info) {
             state.device = device;
         });
 
+#ifdef WEBGPU_BACKEND_EMSCRIPTEN
+    // NOTE: Yield to JS event loop so the promise resolves on web.
+    while (!state.done) {
+        emscripten_sleep(10);
+    }
+#else
     while (!state.done) {
         mInstance.ProcessEvents();
     }
+#endif
 
     if (!state.device) return false;
 

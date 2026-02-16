@@ -423,3 +423,129 @@ int main(int argc, char** argv) {
     glfwTerminate();
     return EXIT_SUCCESS;
 }
+
+
+// #include "toolbox/base/base.hpp"
+// #include "toolbox/gfx/gfx.hpp"
+//
+// #ifdef WEBGPU_BACKEND_EMSCRIPTEN
+// #include <emscripten/emscripten.h>
+// #endif
+//
+// using namespace ct;
+//
+// #ifdef WEBGPU_BACKEND_EMSCRIPTEN
+// namespace {
+//
+// struct AppState {
+//     ref<Window> window;
+//     ref<Device> device;
+//     ref<Surface> surface;
+// };
+//
+// } // namespace
+// #endif
+//
+// #include <webgpu/webgpu_cpp.h>
+//
+// static bool RenderFrame(
+//     const ref<Window>& window, const ref<Device>& device, const ref<Surface>& surface) {
+//     if (!window || !device || !surface) {
+//         return false;
+//     }
+//     if (window->ShouldClose()) {
+//         return false;
+//     }
+//
+//     window->PollEvents();
+//
+//     auto frameResult = surface->BeginFrame();
+//     if (!frameResult) {
+//         log::Error("BeginFrame failed: {}", frameResult.error().Message());
+//         return false;
+//     }
+//
+//     const auto frame = *frameResult;
+//
+//     wgpu::CommandEncoderDescriptor encDesc{};
+//     auto encoder = device->GetDevice().CreateCommandEncoder(&encDesc);
+//
+//     wgpu::RenderPassColorAttachment colorAttachment{};
+//     colorAttachment.view = frame.colorView;
+//     colorAttachment.loadOp = wgpu::LoadOp::Clear;
+//     colorAttachment.storeOp = wgpu::StoreOp::Store;
+//     colorAttachment.clearValue = {0.11, 0.11, 0.11, 1.0f};
+//
+//     wgpu::RenderPassDepthStencilAttachment depthAttachment{};
+//     depthAttachment.view = frame.depthView;
+//     depthAttachment.depthLoadOp = wgpu::LoadOp::Clear;
+//     depthAttachment.depthStoreOp = wgpu::StoreOp::Store;
+//     depthAttachment.depthClearValue = 1.0f;
+//     depthAttachment.stencilLoadOp = wgpu::LoadOp::Clear;
+//     depthAttachment.stencilStoreOp = wgpu::StoreOp::Store;
+//     depthAttachment.stencilClearValue = 0;
+//
+//     wgpu::RenderPassDescriptor passDesc{};
+//     passDesc.colorAttachmentCount = 1;
+//     passDesc.colorAttachments = &colorAttachment;
+//     if (frame.depthView) {
+//         passDesc.depthStencilAttachment = &depthAttachment;
+//     }
+//
+//     auto pass = encoder.BeginRenderPass(&passDesc);
+//     pass.End();
+//
+//     auto commands = encoder.Finish();
+//     device->GetQueue().Submit(1, &commands);
+//     surface->Present();
+//
+//     return true;
+// }
+//
+// int main(int argc, char** argv) {
+//     (void)argc;
+//     (void)argv;
+//     log::Configure("toolbox");
+//
+//     auto windowResult = Window::Create({.title = "toolbox", .width = 1080, .height = 720});
+//     if (!windowResult) {
+//         log::Critical("Failed to create window: {}", windowResult.error().Message());
+//         return 1;
+//     }
+//     auto window = *windowResult;
+//
+//     auto deviceResult = Device::Create({.validate = true, .verbose = true});
+//     if (!deviceResult) {
+//         log::Error("Failed to create device: {}", deviceResult.error().Message());
+//         return 1;
+//     }
+//     auto device = *deviceResult;
+//
+//     auto surfaceResult = ct::Surface::Create(
+//         window, device, {.presentMode = ct::PresentMode::VSync, .enableDepth = true});
+//     if (!surfaceResult) {
+//         log::Error("Failed to create surface: {}", surfaceResult.error().Message());
+//         return 1;
+//     }
+//     auto surface = *surfaceResult;
+//
+// #ifdef WEBGPU_BACKEND_EMSCRIPTEN
+//     static AppState app;
+//     app.window = window;
+//     app.device = device;
+//     app.surface = surface;
+//
+//     emscripten_set_main_loop_arg(
+//         [](void* userData) {
+//             auto* state = static_cast<AppState*>(userData);
+//             if (!RenderFrame(state->window, state->device, state->surface)) {
+//                 emscripten_cancel_main_loop();
+//             }
+//         },
+//         &app, 0, true);
+// #else
+//     while (RenderFrame(window, device, surface)) {}
+// #endif
+//
+//     return 0;
+// }

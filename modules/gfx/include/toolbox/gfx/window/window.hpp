@@ -1,15 +1,13 @@
 #pragma once
 
-#include <toolbox/base/base.hpp>
-
-#include "GLFW/glfw3.h"
-
+#include <functional>
 #include <string>
+#include <toolbox/base/base.hpp>
+#include <vector>
 
 namespace ct {
 
 enum class CursorMode : u8 { Normal, Hidden, Disabled };
-
 enum class CursorType : u8 { Arrow, IBeam, Crosshair, Hand, HResize, VResize };
 
 struct WindowInfo {
@@ -31,9 +29,7 @@ public:
     [[nodiscard]] u32 GetWidth() const noexcept;
     [[nodiscard]] u32 GetHeight() const noexcept;
     [[nodiscard]] f32 GetAspectRatio() const noexcept;
-
     [[nodiscard]] bool IsFullScreen() const noexcept;
-    [[nodiscard]] bool IsVSync() const noexcept;
 
     [[nodiscard]] CursorMode GetCursorMode() const noexcept;
     void SetCursorMode(CursorMode mode) noexcept;
@@ -44,7 +40,7 @@ public:
     [[nodiscard]] f32 GetContentScaleX() const noexcept;
     [[nodiscard]] f32 GetContentScaleY() const noexcept;
 
-    [[nodiscard]] void* GetWindowHandle() const noexcept;
+    [[nodiscard]] void* GetNativeHandle() const noexcept;
     [[nodiscard]] bool ShouldClose() const noexcept;
     void PollEvents() const noexcept;
     void Close() noexcept;
@@ -53,16 +49,17 @@ public:
 
     [[nodiscard]] static result<ref<Window>> Create(const WindowInfo& info = {}) noexcept;
 
-protected:
+private:
+    Window() = default;
     bool InitializeGLFW();
     bool InitializeWindow(const WindowInfo& info);
     void Terminate();
     void SetupCallbacks();
-    Window() = default;
 
-private:
-    GLFWwindow* mWindowHandle{nullptr};
-    ResizeCallback mResizeCallback{nullptr};
+    struct Impl;
+    scope<Impl> mImpl;
+
+    std::vector<ResizeCallback> mResizeCallbacks;
 
     std::string mTitle{"toolbox"};
     u32 mWidth{0};

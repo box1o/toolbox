@@ -13,7 +13,6 @@ find_or_add(cxxopts
 )
 
 
-
 #NOTE: Graphics
 if(NOT EMSCRIPTEN)
   find_or_add(fmt

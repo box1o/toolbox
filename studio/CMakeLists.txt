@@ -80,6 +80,8 @@ if(EMSCRIPTEN)
 
     target_link_options(${STUDIO_NAME} PRIVATE
         "--use-port=${_WGPU_PORT}"
+        "-sUSE_GLFW=3"
+        "-sASYNCIFY"
         "-sALLOW_MEMORY_GROWTH=1"
         "-sASSERTIONS=1"
         "--shell-file" "${CMAKE_SOURCE_DIR}/web/index.html"

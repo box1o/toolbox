@@ -6,23 +6,16 @@ project(gfx
     LANGUAGES CXX
 )
 
-file(GLOB_RECURSE HEADERS
-    include/*.hpp
-    backends/*.hpp
-)
-
-file(GLOB_RECURSE SOURCES
-    src/*.cpp
-    backends/*.cpp
-)
+file(GLOB_RECURSE HEADERS include/*.hpp)
+file(GLOB_RECURSE SOURCES src/*.cpp)
 
 set(GFX_DEPS
     toolbox::base
     toolbox::math
     yaml-cpp::yaml-cpp
+    stb::stb
 )
 
-# Native-only deps
 if(NOT EMSCRIPTEN)
     list(APPEND GFX_DEPS
         glfw
@@ -38,23 +31,6 @@ else()
     endif()
 endif()
 
-
-# # find_package(Vulkan REQUIRED)
-# # if(Vulkan_FOUND)
-# #     message(STATUS "Vulkan found, adding to ct_vision dependencies")
-# #     list(APPEND GFX_DEPS Vulkan::Vulkan)  
-# # else()
-# #     message(FATAL_ERROR "Vulkan not found, but is required for ct_vision module")
-# # endif()
-# #
-# # find_package(Eigen3 REQUIRED)
-# # if(Eigen3_FOUND)
-# #     message(STATUS "Eigen3 found, adding to ct_vision dependencies")
-# #     list(APPEND GFX_DEPS Eigen3::Eigen)  
-# # else()
-# #     message(FATAL_ERROR "Eigen3 not found, but is required for ct_vision module")
-# # endif()
-
 add_module(gfx
     SOURCES ${SOURCES}
     HEADERS ${HEADERS}
@@ -63,10 +39,13 @@ add_module(gfx
 
 if(EMSCRIPTEN)
     target_compile_definitions(${namespace}_gfx PUBLIC WEBGPU_BACKEND_EMSCRIPTEN)
-    target_compile_options(${namespace}_gfx PRIVATE
+    target_compile_options(${namespace}_gfx PUBLIC
         "--use-port=${_WGPU_PORT}"
+        "-sUSE_GLFW=3"
     )
     target_link_options(${namespace}_gfx PUBLIC
         "--use-port=${_WGPU_PORT}"
+        "-sUSE_GLFW=3"
+        "-sASYNCIFY"
     )
 endif()

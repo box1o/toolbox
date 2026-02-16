@@ -1,46 +1,78 @@
 #pragma once
 #include "toolbox/base/base.hpp"
-#include "toolbox/base/types/types.hpp"
-#include <webgpu/webgpu_cpp.h>
+#include "toolbox/gfx/types.hpp"
 
 namespace ct {
 
-enum class NativeSurfaceType : u8 { None, GLFW, Android, Apple, Win32, X11, Wayland };
-struct NativeSurfaceHandle {
-    NativeSurfaceType type{NativeSurfaceType::None};
-    void* window{nullptr};  // GLFWwindow*, ANativeWindow*, NSWindow*, etc.
-    void* view{nullptr};    // MTKView*
-    void* layer{nullptr};   // CAMetalLayer*
-    void* display{nullptr}; // X11 Display*, WL display*, etc.
-};
-
-struct SurfaceInfo {};
-
 class Window;
 class Device;
+class Texture;
+
+enum class PresentMode : u8 {
+    Immediate,
+    VSync,
+    Mailbox,
+};
+
+struct SurfaceInfo {
+    PresentMode presentMode{PresentMode::VSync};
+    bool enableDepth{true};
+    TextureFormat depthFormat{TextureFormat::Depth24PlusStencil8};
+};
+
+struct Frame {
+    wgpu::TextureView colorView{nullptr};
+    wgpu::TextureView depthView{nullptr};
+    u32 width{0};
+    u32 height{0};
+};
+
 class Surface {
 public:
-    virtual ~Surface();
+    ~Surface();
 
-    [[nodiscard]] static result<scope<Surface>> Create(
-        weak<Window> window, weak<Device> device, const SurfaceInfo& info) noexcept;
+    [[nodiscard]] result<Frame> BeginFrame() noexcept;
+    void Present() noexcept;
 
-    // TODO: Implement this latter
-    //  [[nodiscard]] static result<scope<Surface>> CreateFromNative(
-    //      const NativeSurfaceHandle& handle, weak<Device> device, const SurfaceInfo& info)
-    //      noexcept;
+    void Resize(u32 width, u32 height);
 
-    // [[nodiscard]] const NativeSurfaceHandle& GetNativeHandle() const noexcept { return
-    // mNativeHandle; };
-    //
-    //
+    [[nodiscard]] TextureFormat GetFormat() const noexcept;
+    [[nodiscard]] TextureFormat GetDepthFormat() const noexcept;
+    [[nodiscard]] bool HasDepth() const noexcept;
+    [[nodiscard]] u32 GetWidth() const noexcept;
+    [[nodiscard]] u32 GetHeight() const noexcept;
+    [[nodiscard]] f32 GetAspectRatio() const noexcept;
+    [[nodiscard]] PresentMode GetPresentMode() const noexcept;
+
+    [[nodiscard]] wgpu::Surface GetHandle() const noexcept;
+
+    [[nodiscard]] static result<ref<Surface>> Create(
+        ref<Window> window, ref<Device> device, const SurfaceInfo& info = {}) noexcept;
 
 private:
     Surface() = default;
-    bool CreateSurface(const Window& window, const Device& device);
+    bool CreateNativeSurface(const Window& window, const Device& device);
+    bool Configure(const Device& device, u32 width, u32 height);
+    bool CreateDepthTexture(const Device& device, u32 width, u32 height);
 
-private:
     wgpu::Surface mSurface{nullptr};
+    wgpu::TextureFormat mFormat{wgpu::TextureFormat::BGRA8Unorm};
+    PresentMode mPresentMode{PresentMode::VSync};
+    u32 mWidth{0};
+    u32 mHeight{0};
+
+    bool mDepthEnabled{false};
+    TextureFormat mDepthFormat{TextureFormat::Depth24PlusStencil8};
+    wgpu::Texture mDepthTexture{nullptr};
+    wgpu::TextureView mDepthView{nullptr};
+
+    weak<Device> mDevice;
+    weak<Window> mWindow;
 };
+
+namespace detail {
+[[nodiscard]] wgpu::Surface CreateWindowNativeSurface(
+    const wgpu::Instance& instance, const Window& window);
+}
 
 } // namespace ct

@@ -1,6 +1,5 @@
 #pragma once
 #include "toolbox/base/base.hpp"
-
 #include <webgpu/webgpu_cpp.h>
 
 namespace ct {
@@ -10,7 +9,7 @@ struct DeviceInfo {
     bool verbose{false};
 };
 
-struct AdapterInfo {
+struct AdapterCapabilities {
     std::string vendor{};
     std::string architecture{};
     std::string device{};
@@ -22,37 +21,40 @@ struct AdapterInfo {
 struct DeviceCapabilities {
     u32 maxVertexAttributes{0};
     u32 maxColorAttachments{0};
-    // TODO: Complete latter with the rest of values i need with data from wgpu::Limits
-    // ...
+    u32 maxTextureDimension2D{0};
+    u32 maxBufferSize{0};
+    u32 maxBindGroups{0};
 };
 
 class Device {
 public:
-    virtual ~Device();
+    ~Device();
 
-    AdapterInfo GetGPUInfo() const noexcept { return mAdaperInfo; };
-    DeviceCapabilities GetCapabilities() const noexcept { return mDeviceCapabilities; };
+    [[nodiscard]] const AdapterCapabilities& GetAdapterCapabilities() const noexcept;
+    [[nodiscard]] const DeviceCapabilities& GetCapabilities() const noexcept;
 
-    void* GetNativeDevice() const noexcept { return reinterpret_cast<void*>(mDevice.Get()); };
+    [[nodiscard]] wgpu::Instance GetInstance() const noexcept;
+    [[nodiscard]] wgpu::Adapter GetAdapter() const noexcept;
+    [[nodiscard]] wgpu::Device GetDevice() const noexcept;
+    [[nodiscard]] wgpu::Queue GetQueue() const noexcept;
 
+    void Tick() const;
 
-    [[nodiscard]] static result<ref<Device>> Create(const DeviceInfo& info) noexcept;
+    [[nodiscard]] static result<ref<Device>> Create(const DeviceInfo& info = {}) noexcept;
 
 private:
     Device() = default;
-    bool CreateInstace();
+    bool CreateInstance(const DeviceInfo& info);
     bool CreateAdapter();
-    bool CreateDevice();
+    bool CreateDevice(const DeviceInfo& info);
 
-private:
-    AdapterInfo mAdaperInfo{};
+    AdapterCapabilities mAdapterCapabilities{};
+    DeviceCapabilities mDeviceCapabilities{};
 
     wgpu::Instance mInstance{nullptr};
     wgpu::Adapter mAdapter{nullptr};
     wgpu::Device mDevice{nullptr};
     wgpu::Queue mQueue{nullptr};
-
-    DeviceCapabilities mDeviceCapabilities{};
 };
 
 } // namespace ct

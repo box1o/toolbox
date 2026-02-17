@@ -50,6 +50,7 @@ Device::~Device() {
 }
 
 bool Device::CreateInstance(const DeviceInfo& info) {
+    (void)info;
 #ifdef WEBGPU_BACKEND_EMSCRIPTEN
     mInstance = wgpu::CreateInstance(nullptr);
 #else
@@ -80,7 +81,6 @@ bool Device::CreateAdapter() {
         });
 
 #ifdef WEBGPU_BACKEND_EMSCRIPTEN
-    // NOTE: Yield to JS event loop so the promise resolves
     while (!state.done) {
         emscripten_sleep(10);
     }
@@ -134,7 +134,6 @@ bool Device::CreateDevice(const DeviceInfo& info) {
         });
 
 #ifdef WEBGPU_BACKEND_EMSCRIPTEN
-    // NOTE: Yield to JS event loop so the promise resolves on web.
     while (!state.done) {
         emscripten_sleep(10);
     }
@@ -158,7 +157,7 @@ bool Device::CreateDevice(const DeviceInfo& info) {
         .maxVertexAttributes = limits.maxVertexAttributes,
         .maxColorAttachments = limits.maxColorAttachments,
         .maxTextureDimension2D = limits.maxTextureDimension2D,
-        .maxBufferSize = static_cast<u32>(limits.maxBufferSize),
+        .maxBufferSize = limits.maxBufferSize,
         .maxBindGroups = limits.maxBindGroups,
     };
 

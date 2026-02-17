@@ -16,7 +16,7 @@ result<ref<Texture>> Texture::Create(
     }
 
     ref<Texture> tex(new Texture());
-    tex->mDevice = device;
+    tex->mDevice = device.get();
 
     if (!tex->Init(*device, info)) {
         return err(ErrorCode::FAILED_TO_ACQUIRE_RESOURCE, "Failed to create texture");
@@ -38,7 +38,8 @@ result<ref<Texture>> Texture::FromFile(ref<Device> device, const std::filesystem
 
     if (!device) return err(ErrorCode::FAILED_TO_ACQUIRE_RESOURCE, "Device is null");
 
-    stbi_set_flip_vertically_on_load(loadInfo.flipOnLoad ? 1 : 0);
+    //NOTE: thread-safe variant avoids global state races
+    stbi_set_flip_vertically_on_load_thread(loadInfo.flipOnLoad ? 1 : 0);
 
     int w = 0, h = 0, channels = 0;
     int desiredChannels = loadInfo.forceRGBA ? 4 : 0;
@@ -61,8 +62,6 @@ result<ref<Texture>> Texture::FromFile(ref<Device> device, const std::filesystem
     auto result = Create(device, info, pixels, dataSize);
 
     stbi_image_free(pixels);
-    stbi_set_flip_vertically_on_load(0);
-
     return result;
 }
 
@@ -115,8 +114,7 @@ bool Texture::CreateView() {
 }
 
 void Texture::Write(const void* data, u64 dataSize, u32 mipLevel, u32 arrayLayer) {
-    auto dev = mDevice.lock();
-    if (!dev || !data || dataSize == 0) return;
+    if (!mDevice || !data || dataSize == 0) return;
 
     u32 mipWidth = std::max(1u, mInfo.width >> mipLevel);
     u32 mipHeight = std::max(1u, mInfo.height >> mipLevel);
@@ -138,7 +136,7 @@ void Texture::Write(const void* data, u64 dataSize, u32 mipLevel, u32 arrayLayer
     wgpu::Extent3D writeSize = {mipWidth, mipHeight, 1};
 
     if (alignedBytesPerRow == bytesPerRow) {
-        dev->GetQueue().WriteTexture(
+        mDevice->GetQueue().WriteTexture(
             &dest, data, static_cast<size_t>(dataSize), &dataLayout, &writeSize);
     } else {
         size_t packedSize = static_cast<size_t>(alignedBytesPerRow) * mipHeight;
@@ -148,7 +146,7 @@ void Texture::Write(const void* data, u64 dataSize, u32 mipLevel, u32 arrayLayer
             std::memcpy(
                 padded.data() + row * alignedBytesPerRow, src + row * bytesPerRow, bytesPerRow);
         }
-        dev->GetQueue().WriteTexture(&dest, padded.data(), packedSize, &dataLayout, &writeSize);
+        mDevice->GetQueue().WriteTexture(&dest, padded.data(), packedSize, &dataLayout, &writeSize);
     }
 }
 

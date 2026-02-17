@@ -1,12 +1,11 @@
 #pragma once
 #include "toolbox/base/base.hpp"
 #include "toolbox/gfx/types.hpp"
+#include "toolbox/gfx/window/window.hpp"
 
 namespace ct {
 
-class Window;
 class Device;
-class Texture;
 
 enum class PresentMode : u8 {
     Immediate,
@@ -46,14 +45,15 @@ public:
 
     [[nodiscard]] wgpu::Surface GetHandle() const noexcept;
 
+    //NOTE: caller must ensure window and device outlive this Surface
     [[nodiscard]] static result<ref<Surface>> Create(
         ref<Window> window, ref<Device> device, const SurfaceInfo& info = {}) noexcept;
 
 private:
     Surface() = default;
     bool CreateNativeSurface(const Window& window, const Device& device);
-    bool Configure(const Device& device, u32 width, u32 height);
-    bool CreateDepthTexture(const Device& device, u32 width, u32 height);
+    bool Configure(u32 width, u32 height);
+    bool CreateDepthTexture(u32 width, u32 height);
 
     wgpu::Surface mSurface{nullptr};
     wgpu::TextureFormat mFormat{wgpu::TextureFormat::BGRA8Unorm};
@@ -66,8 +66,11 @@ private:
     wgpu::Texture mDepthTexture{nullptr};
     wgpu::TextureView mDepthView{nullptr};
 
-    weak<Device> mDevice;
-    weak<Window> mWindow;
+    //NOTE: non-owning — caller guarantees lifetime
+    Device* mDevice{nullptr};
+    Window* mWindow{nullptr};
+    CallbackId mResizeCallbackId{0};
+    bool mCallbackRegistered{false};
 };
 
 namespace detail {

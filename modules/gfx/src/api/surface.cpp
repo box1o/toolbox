@@ -1,6 +1,5 @@
 #include "toolbox/gfx/api/surface.hpp"
 #include "toolbox/gfx/api/device.hpp"
-#include "toolbox/gfx/window/window.hpp"
 
 namespace ct {
 
@@ -19,8 +18,6 @@ wgpu::TextureFormat SelectFormat(
     [[maybe_unused]] const wgpu::Surface& surface,
     [[maybe_unused]] const wgpu::Adapter& adapter) {
 #ifdef WEBGPU_BACKEND_EMSCRIPTEN
-    // NOTE: Web backends commonly prefer RGBA8Unorm for canvas presentation.
-    // Using the preferred format avoids an extra conversion copy.
     return wgpu::TextureFormat::RGBA8Unorm;
 #else
     wgpu::SurfaceCapabilities caps;
@@ -67,8 +64,8 @@ result<ref<Surface>> Surface::Create(
     if (!device) return err(ErrorCode::FAILED_TO_ACQUIRE_RESOURCE, "Device is null");
 
     ref<Surface> surface(new Surface());
-    surface->mDevice = device;
-    surface->mWindow = window;
+    surface->mDevice = device.get();
+    surface->mWindow = window.get();
     surface->mPresentMode = info.presentMode;
     surface->mDepthEnabled = info.enableDepth;
     surface->mDepthFormat = info.depthFormat;
@@ -80,27 +77,33 @@ result<ref<Surface>> Surface::Create(
     u32 w = window->GetWidth();
     u32 h = window->GetHeight();
 
-    if (!surface->Configure(*device, w, h)) {
+    if (!surface->Configure(w, h)) {
         return err(ErrorCode::FAILED_TO_ACQUIRE_RESOURCE, "Failed to configure surface");
     }
 
     if (info.enableDepth) {
-        if (!surface->CreateDepthTexture(*device, w, h)) {
+        if (!surface->CreateDepthTexture(w, h)) {
             return err(ErrorCode::FAILED_TO_ACQUIRE_RESOURCE, "Failed to create depth texture");
         }
     }
 
-    window->SetResizeCallback([weak = weak<Surface>(surface)](u32 width, u32 height) {
-        if (auto s = weak.lock()) {
-            s->Resize(width, height);
-        }
-    });
+    //NOTE: ref<Surface> guarantees stable address — safe to capture this
+    Surface* self = surface.get();
+    surface->mResizeCallbackId = window->AddResizeCallback(
+        [self](u32 width, u32 height) {
+            self->Resize(width, height);
+        });
+    surface->mCallbackRegistered = true;
 
     log::Info("[wgpu] Surface created ({}x{})", w, h);
     return surface;
 }
 
 Surface::~Surface() {
+    if (mCallbackRegistered && mWindow) {
+        mWindow->RemoveResizeCallback(mResizeCallbackId);
+    }
+
     mDepthView = nullptr;
     if (mDepthTexture) {
         mDepthTexture.Destroy();
@@ -118,14 +121,14 @@ bool Surface::CreateNativeSurface(const Window& window, const Device& device) {
     return true;
 }
 
-bool Surface::Configure(const Device& device, u32 width, u32 height) {
+bool Surface::Configure(u32 width, u32 height) {
     if (width == 0 || height == 0) return true;
 
-    mFormat = SelectFormat(mSurface, device.GetAdapter());
-    wgpu::PresentMode presentMode = SelectPresentMode(mPresentMode, mSurface, device.GetAdapter());
+    mFormat = SelectFormat(mSurface, mDevice->GetAdapter());
+    wgpu::PresentMode presentMode = SelectPresentMode(mPresentMode, mSurface, mDevice->GetAdapter());
 
     wgpu::SurfaceConfiguration config{};
-    config.device = device.GetDevice();
+    config.device = mDevice->GetDevice();
     config.format = mFormat;
     config.width = width;
     config.height = height;
@@ -140,7 +143,7 @@ bool Surface::Configure(const Device& device, u32 width, u32 height) {
     return true;
 }
 
-bool Surface::CreateDepthTexture(const Device& device, u32 width, u32 height) {
+bool Surface::CreateDepthTexture(u32 width, u32 height) {
     if (width == 0 || height == 0) return true;
 
     mDepthView = nullptr;
@@ -157,7 +160,7 @@ bool Surface::CreateDepthTexture(const Device& device, u32 width, u32 height) {
     desc.format = ct::ToWGPU(mDepthFormat);
     desc.usage = wgpu::TextureUsage::RenderAttachment;
 
-    mDepthTexture = device.GetDevice().CreateTexture(&desc);
+    mDepthTexture = mDevice->GetDevice().CreateTexture(&desc);
     if (!mDepthTexture) return false;
 
     wgpu::TextureViewDescriptor viewDesc{};
@@ -177,12 +180,9 @@ result<Frame> Surface::BeginFrame() noexcept {
 #ifndef WEBGPU_BACKEND_EMSCRIPTEN
     if (surfaceTexture.status == wgpu::SurfaceGetCurrentTextureStatus::Outdated ||
         surfaceTexture.status == wgpu::SurfaceGetCurrentTextureStatus::Lost) {
-        auto dev = mDevice.lock();
-        if (dev) {
-            Configure(*dev, mWidth, mHeight);
-            if (mDepthEnabled) CreateDepthTexture(*dev, mWidth, mHeight);
-            mSurface.GetCurrentTexture(&surfaceTexture);
-        }
+        Configure(mWidth, mHeight);
+        if (mDepthEnabled) CreateDepthTexture(mWidth, mHeight);
+        mSurface.GetCurrentTexture(&surfaceTexture);
     }
 
     if (surfaceTexture.status != wgpu::SurfaceGetCurrentTextureStatus::SuccessOptimal &&
@@ -206,22 +206,18 @@ result<Frame> Surface::BeginFrame() noexcept {
 
 void Surface::Present() noexcept {
 #ifndef WEBGPU_BACKEND_EMSCRIPTEN
-    //NOTE: Browser composites automatically, calling Present() crashes on Emscripten
+    //NOTE: browser composites automatically, calling Present() crashes on Emscripten
     mSurface.Present();
 #endif
-    auto dev = mDevice.lock();
-    if (dev) dev->Tick();
+    if (mDevice) mDevice->Tick();
 }
 
 void Surface::Resize(u32 width, u32 height) {
     if (width == 0 || height == 0) return;
     if (width == mWidth && height == mHeight) return;
 
-    auto dev = mDevice.lock();
-    if (!dev) return;
-
-    Configure(*dev, width, height);
-    if (mDepthEnabled) CreateDepthTexture(*dev, width, height);
+    Configure(width, height);
+    if (mDepthEnabled) CreateDepthTexture(width, height);
 
     log::Info("[wgpu] Surface resized ({}x{})", width, height);
 }

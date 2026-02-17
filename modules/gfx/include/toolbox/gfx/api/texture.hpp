@@ -42,6 +42,7 @@ public:
 
     void Write(const void* data, u64 dataSize, u32 mipLevel = 0, u32 arrayLayer = 0);
 
+    //NOTE: caller must ensure device outlives this Texture
     [[nodiscard]] static result<ref<Texture>> Create(ref<Device> device, const TextureInfo& info,
         const void* data = nullptr, u64 dataSize = 0) noexcept;
 
@@ -54,7 +55,7 @@ private:
     bool CreateView();
 
     TextureInfo mInfo{};
-    weak<Device> mDevice;
+    Device* mDevice{nullptr};
     wgpu::Texture mTexture{nullptr};
     wgpu::TextureView mView{nullptr};
 };

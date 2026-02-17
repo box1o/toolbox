@@ -3,12 +3,14 @@
 #include <functional>
 #include <string>
 #include <toolbox/base/base.hpp>
-#include <vector>
+#include <unordered_map>
 
 namespace ct {
 
 enum class CursorMode : u8 { Normal, Hidden, Disabled };
 enum class CursorType : u8 { Arrow, IBeam, Crosshair, Hand, HResize, VResize };
+
+using CallbackId = u32;
 
 struct WindowInfo {
     std::string title{"toolbox"};
@@ -45,7 +47,8 @@ public:
     void PollEvents() const noexcept;
     void Close() noexcept;
 
-    void SetResizeCallback(ResizeCallback callback);
+    [[nodiscard]] CallbackId AddResizeCallback(ResizeCallback callback);
+    void RemoveResizeCallback(CallbackId id);
 
     [[nodiscard]] static result<ref<Window>> Create(const WindowInfo& info = {}) noexcept;
 
@@ -55,11 +58,17 @@ private:
     bool InitializeWindow(const WindowInfo& info);
     void Terminate();
     void SetupCallbacks();
+    void HandleResize(u32 width, u32 height);
+
+#ifdef WEBGPU_BACKEND_EMSCRIPTEN
+    void SetupEmscriptenResize();
+#endif
 
     struct Impl;
     scope<Impl> mImpl;
 
-    std::vector<ResizeCallback> mResizeCallbacks;
+    std::unordered_map<CallbackId, ResizeCallback> mResizeCallbacks;
+    CallbackId mNextCallbackId{0};
 
     std::string mTitle{"toolbox"};
     u32 mWidth{0};

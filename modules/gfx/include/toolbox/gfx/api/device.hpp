@@ -22,7 +22,7 @@ struct DeviceCapabilities {
     u32 maxVertexAttributes{0};
     u32 maxColorAttachments{0};
     u32 maxTextureDimension2D{0};
-    u32 maxBufferSize{0};
+    u64 maxBufferSize{0};
     u32 maxBindGroups{0};
 };
 

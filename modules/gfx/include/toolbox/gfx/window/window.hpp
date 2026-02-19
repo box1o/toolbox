@@ -2,10 +2,11 @@
 
 #include <functional>
 #include <string>
-#include <toolbox/base/base.hpp>
 #include <unordered_map>
 
-namespace ct {
+#include <toolbox/base/base.hpp>
+
+namespace ct::gfx {
 
 enum class CursorMode : u8 { Normal, Hidden, Disabled };
 enum class CursorType : u8 { Arrow, IBeam, Crosshair, Hand, HResize, VResize };
@@ -25,7 +26,11 @@ struct WindowInfo {
 class Window {
 public:
     using ResizeCallback = std::function<void(u32 width, u32 height)>;
+
     ~Window();
+
+    Window(const Window&) = delete;
+    Window& operator=(const Window&) = delete;
 
     [[nodiscard]] const std::string& GetTitle() const noexcept;
     [[nodiscard]] u32 GetWidth() const noexcept;
@@ -33,14 +38,14 @@ public:
     [[nodiscard]] f32 GetAspectRatio() const noexcept;
     [[nodiscard]] bool IsFullScreen() const noexcept;
 
+    [[nodiscard]] f32 GetContentScaleX() const noexcept;
+    [[nodiscard]] f32 GetContentScaleY() const noexcept;
+
     [[nodiscard]] CursorMode GetCursorMode() const noexcept;
     void SetCursorMode(CursorMode mode) noexcept;
 
     [[nodiscard]] CursorType GetCursorType() const noexcept;
     void SetCursorType(CursorType type) noexcept;
-
-    [[nodiscard]] f32 GetContentScaleX() const noexcept;
-    [[nodiscard]] f32 GetContentScaleY() const noexcept;
 
     [[nodiscard]] void* GetNativeHandle() const noexcept;
     [[nodiscard]] bool ShouldClose() const noexcept;
@@ -54,21 +59,23 @@ public:
 
 private:
     Window() = default;
-    bool InitializeGLFW();
-    bool InitializeWindow(const WindowInfo& info);
-    void Terminate();
-    void SetupCallbacks();
-    void HandleResize(u32 width, u32 height);
+
+    bool InitializeGLFW() noexcept;
+    bool InitializeWindow(const WindowInfo& info) noexcept;
+    static void TerminateGLFW() noexcept;
+
+    void SetupCallbacks() noexcept;
+    void HandleResize(u32 width, u32 height) noexcept;
 
 #ifdef WEBGPU_BACKEND_EMSCRIPTEN
-    void SetupEmscriptenResize();
+    void SetupEmscriptenResize() noexcept;
 #endif
 
     struct Impl;
     scope<Impl> mImpl;
 
     std::unordered_map<CallbackId, ResizeCallback> mResizeCallbacks;
-    CallbackId mNextCallbackId{0};
+    CallbackId mNextCallbackId{1}; 
 
     std::string mTitle{"toolbox"};
     u32 mWidth{0};

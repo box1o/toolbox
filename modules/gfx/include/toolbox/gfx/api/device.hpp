@@ -1,15 +1,11 @@
 #pragma once
 #include "toolbox/base/base.hpp"
-#include <webgpu/webgpu_cpp.h>
+#include "toolbox/gfx/common.hpp"
+#include <functional>
 
-namespace ct {
+namespace ct::gfx {
 
-struct DeviceInfo {
-    bool validate{true};
-    bool verbose{false};
-};
-
-struct AdapterCapabilities {
+struct AdapterInfo {
     std::string vendor{};
     std::string architecture{};
     std::string device{};
@@ -18,7 +14,7 @@ struct AdapterCapabilities {
     u32 adapterType{};
 };
 
-struct DeviceCapabilities {
+struct Limits {
     u32 maxVertexAttributes{0};
     u32 maxColorAttachments{0};
     u32 maxTextureDimension2D{0};
@@ -26,35 +22,44 @@ struct DeviceCapabilities {
     u32 maxBindGroups{0};
 };
 
-class Device {
-public:
-    ~Device();
-
-    [[nodiscard]] const AdapterCapabilities& GetAdapterCapabilities() const noexcept;
-    [[nodiscard]] const DeviceCapabilities& GetCapabilities() const noexcept;
-
-    [[nodiscard]] wgpu::Instance GetInstance() const noexcept;
-    [[nodiscard]] wgpu::Adapter GetAdapter() const noexcept;
-    [[nodiscard]] wgpu::Device GetDevice() const noexcept;
-    [[nodiscard]] wgpu::Queue GetQueue() const noexcept;
-
-    void Tick() const;
-
-    [[nodiscard]] static result<ref<Device>> Create(const DeviceInfo& info = {}) noexcept;
-
-private:
-    Device() = default;
-    bool CreateInstance(const DeviceInfo& info);
-    bool CreateAdapter();
-    bool CreateDevice(const DeviceInfo& info);
-
-    AdapterCapabilities mAdapterCapabilities{};
-    DeviceCapabilities mDeviceCapabilities{};
-
-    wgpu::Instance mInstance{nullptr};
-    wgpu::Adapter mAdapter{nullptr};
-    wgpu::Device mDevice{nullptr};
-    wgpu::Queue mQueue{nullptr};
+enum class PowerPreference : u8 {
+    LowPower,
+    HighPerformance,
 };
 
-} // namespace ct
+struct DeviceDesc {
+    PowerPreference powerPreference{PowerPreference::HighPerformance};
+    DebugConfig debug{};
+};
+
+enum class Status : u8 {
+    Success = 0,
+    Error = 1,
+};
+
+class Device {
+public:
+    using DeviceCreatedCallback = std::function<void(Status status, void* userData)>;
+    using AdapterCreatedCallback = std::function<void(Status status, void* userData)>;
+
+public:
+    virtual ~Device() = default;
+
+    [[nodiscard]] virtual void* GetInstance() const noexcept = 0;
+    [[nodiscard]] virtual void* GetAdapter() const noexcept = 0;
+    [[nodiscard]] virtual void* GetDevice() const noexcept = 0;
+    [[nodiscard]] virtual void* GetQueue() const noexcept = 0;
+
+    [[nodiscard]] virtual const AdapterInfo& GetAdapterInfo() const noexcept = 0;
+    [[nodiscard]] virtual const Limits& GetLimits() const noexcept = 0;
+
+    virtual void Tick() const = 0;
+
+    // NOTE: async creation is not implemented in this backend yet; the parameter is kept for API compatibility.
+    [[nodiscard]] static result<ref<Device>> Create(const DeviceDesc& desc, bool async = false) noexcept;
+
+protected:
+    Device() = default;
+};
+
+} // namespace ct::gfx

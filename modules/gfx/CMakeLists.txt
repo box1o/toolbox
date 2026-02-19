@@ -6,8 +6,26 @@ project(gfx
     LANGUAGES CXX
 )
 
-file(GLOB_RECURSE HEADERS include/*.hpp)
-file(GLOB_RECURSE SOURCES src/*.cpp)
+file(GLOB_RECURSE HEADERS CONFIGURE_DEPENDS 
+    "${CMAKE_CURRENT_SOURCE_DIR}/include/*.hpp"
+    # "${CMAKE_CURRENT_SOURCE_DIR}/backend/window/*.hpp"
+)
+file(GLOB_RECURSE SOURCES CONFIGURE_DEPENDS 
+    "${CMAKE_CURRENT_SOURCE_DIR}/src/*.cpp"
+    # "${CMAKE_CURRENT_SOURCE_DIR}/backend/window/*.cpp"
+)
+
+set(USE_WEBGPU ON CACHE BOOL "Enable WebGPU backend")
+
+if(USE_WEBGPU)
+  file(GLOB_RECURSE TMP CONFIGURE_DEPENDS "${CMAKE_CURRENT_SOURCE_DIR}/backend/webgpu/*.hpp")
+  list(APPEND HEADERS ${TMP})
+
+  file(GLOB_RECURSE TMP CONFIGURE_DEPENDS "${CMAKE_CURRENT_SOURCE_DIR}/backend/webgpu/*.cpp")
+  list(APPEND SOURCES ${TMP})
+
+  unset(TMP)
+endif()
 
 set(GFX_DEPS
     toolbox::base
@@ -32,9 +50,15 @@ else()
 endif()
 
 add_module(gfx
-    SOURCES ${SOURCES}
+    SOURCES ${SOURCES} 
+            ${BACKEND_SOURCES}
     HEADERS ${HEADERS}
+            ${BACKEND_HEADERS}
     DEPENDENCIES ${GFX_DEPS}
+)
+
+target_compile_definitions(${namespace}_gfx PUBLIC
+    $<$<BOOL:${USE_WEBGPU}>:USE_WEBGPU_BACKEND>
 )
 
 if(EMSCRIPTEN)

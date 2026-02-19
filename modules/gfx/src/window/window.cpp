@@ -4,11 +4,10 @@
 #include <GLFW/glfw3.h>
 
 #ifdef WEBGPU_BACKEND_EMSCRIPTEN
-#include <emscripten/emscripten.h>
 #include <emscripten/html5.h>
 #endif
 
-namespace ct {
+namespace ct::gfx {
 
 struct Window::Impl {
     GLFWwindow* window{nullptr};
@@ -24,60 +23,54 @@ struct Window::Impl {
 
 namespace detail {
 
-void ErrorCallback(int error, const char* description) {
+static void ErrorCallback(int error, const char* description) {
     log::Error("GLFW Error ({}): {}", error, description ? description : "(null)");
 }
 
-[[nodiscard]] GLFWcursor* CreateGlfwCursor(CursorType type) noexcept {
+[[nodiscard]] static GLFWcursor* CreateGlfwCursor(CursorType type) noexcept {
     switch (type) {
-    case CursorType::Arrow:
-        return glfwCreateStandardCursor(GLFW_ARROW_CURSOR);
-    case CursorType::IBeam:
-        return glfwCreateStandardCursor(GLFW_IBEAM_CURSOR);
-    case CursorType::Crosshair:
-        return glfwCreateStandardCursor(GLFW_CROSSHAIR_CURSOR);
-    case CursorType::Hand:
-        return glfwCreateStandardCursor(GLFW_HAND_CURSOR);
-    case CursorType::HResize:
-        return glfwCreateStandardCursor(GLFW_HRESIZE_CURSOR);
-    case CursorType::VResize:
-        return glfwCreateStandardCursor(GLFW_VRESIZE_CURSOR);
-    default:
-        return nullptr;
+    case CursorType::Arrow:     return glfwCreateStandardCursor(GLFW_ARROW_CURSOR);
+    case CursorType::IBeam:     return glfwCreateStandardCursor(GLFW_IBEAM_CURSOR);
+    case CursorType::Crosshair: return glfwCreateStandardCursor(GLFW_CROSSHAIR_CURSOR);
+    case CursorType::Hand:      return glfwCreateStandardCursor(GLFW_HAND_CURSOR);
+    case CursorType::HResize:   return glfwCreateStandardCursor(GLFW_HRESIZE_CURSOR);
+    case CursorType::VResize:   return glfwCreateStandardCursor(GLFW_VRESIZE_CURSOR);
+    default:                    return nullptr;
     }
 }
 
 } // namespace detail
 
 result<ref<Window>> Window::Create(const WindowInfo& info) noexcept {
+    // NOTE: Window() is private, so we cannot use make_shared/createRef here.
     ref<Window> win(new Window());
     win->mImpl = scope<Impl>(new Impl());
 
     if (!win->InitializeGLFW()) {
-        return err(ErrorCode::FAILED_TO_ACQUIRE_RESOURCE, "Failed to initialize GLFW");
+        return err(ErrorCode::GRAPHICS_INIT_FAILED, "Failed to initialize GLFW");
     }
     if (!win->InitializeWindow(info)) {
-        return err(ErrorCode::FAILED_TO_ACQUIRE_RESOURCE, "Failed to create window");
+        return err(ErrorCode::GRAPHICS_INIT_FAILED, "Failed to create window");
     }
-
-    return win;
+    return ok(win);
 }
 
 Window::~Window() { Close(); }
 
-bool Window::InitializeGLFW() {
+bool Window::InitializeGLFW() noexcept {
     if (sInitialized) return true;
 
+    glfwSetErrorCallback(detail::ErrorCallback);
     if (!glfwInit()) {
         log::Critical("Failed to initialize GLFW");
         return false;
     }
-    glfwSetErrorCallback(detail::ErrorCallback);
+
     sInitialized = true;
     return true;
 }
 
-bool Window::InitializeWindow(const WindowInfo& info) {
+bool Window::InitializeWindow(const WindowInfo& info) noexcept {
 #if defined(GLFW_PLATFORM_X11) && defined(GLFW_PLATFORM)
     glfwInitHint(GLFW_PLATFORM, GLFW_PLATFORM_X11);
 #endif
@@ -89,16 +82,21 @@ bool Window::InitializeWindow(const WindowInfo& info) {
 
     GLFWmonitor* monitor = info.fullscreen ? glfwGetPrimaryMonitor() : nullptr;
 
-    mImpl->window = glfwCreateWindow(static_cast<int>(info.width), static_cast<int>(info.height),
-        info.title.c_str(), monitor, nullptr);
+    mImpl->window = glfwCreateWindow(
+        static_cast<int>(info.width),
+        static_cast<int>(info.height),
+        info.title.c_str(),
+        monitor,
+        nullptr);
 
     if (!mImpl->window) {
-        if (sWindowCount == 0) Terminate();
         log::Critical("Failed to create GLFW window");
+        if (sWindowCount == 0) TerminateGLFW();
         return false;
     }
 
     ++sWindowCount;
+
     mTitle = info.title;
     mWidth = info.width;
     mHeight = info.height;
@@ -119,18 +117,18 @@ bool Window::InitializeWindow(const WindowInfo& info) {
     return true;
 }
 
-void Window::Terminate() {
+void Window::TerminateGLFW() noexcept {
     if (!sInitialized) return;
     glfwTerminate();
     sInitialized = false;
 }
 
 void* Window::GetNativeHandle() const noexcept {
-    return mImpl ? static_cast<void*>(mImpl->window) : nullptr;
+    return (mImpl && mImpl->window) ? static_cast<void*>(mImpl->window) : nullptr;
 }
 
 bool Window::ShouldClose() const noexcept {
-    return !mImpl || !mImpl->window || glfwWindowShouldClose(mImpl->window) != 0;
+    return (!mImpl || !mImpl->window) ? true : (glfwWindowShouldClose(mImpl->window) != 0);
 }
 
 void Window::PollEvents() const noexcept { glfwPollEvents(); }
@@ -138,27 +136,24 @@ void Window::PollEvents() const noexcept { glfwPollEvents(); }
 void Window::Close() noexcept {
     if (!mImpl || !mImpl->window) return;
 
+    glfwSetWindowUserPointer(mImpl->window, nullptr);
     glfwDestroyWindow(mImpl->window);
     mImpl->window = nullptr;
-    --sWindowCount;
-    if (sWindowCount == 0) Terminate();
+
+    if (sWindowCount > 0) --sWindowCount;
+    if (sWindowCount == 0) TerminateGLFW();
 }
 
 void Window::SetCursorMode(CursorMode mode) noexcept {
     if (!mImpl || !mImpl->window) return;
 
     mCursorMode = mode;
+
     int value = GLFW_CURSOR_NORMAL;
     switch (mode) {
-    case CursorMode::Normal:
-        value = GLFW_CURSOR_NORMAL;
-        break;
-    case CursorMode::Hidden:
-        value = GLFW_CURSOR_HIDDEN;
-        break;
-    case CursorMode::Disabled:
-        value = GLFW_CURSOR_DISABLED;
-        break;
+    case CursorMode::Normal:   value = GLFW_CURSOR_NORMAL;   break;
+    case CursorMode::Hidden:   value = GLFW_CURSOR_HIDDEN;   break;
+    case CursorMode::Disabled: value = GLFW_CURSOR_DISABLED; break;
     }
     glfwSetInputMode(mImpl->window, GLFW_CURSOR, value);
 }
@@ -176,7 +171,7 @@ void Window::SetCursorType(CursorType type) noexcept {
     mCursorType = type;
 }
 
-void Window::HandleResize(u32 width, u32 height) {
+void Window::HandleResize(u32 width, u32 height) noexcept {
     if (width == 0 || height == 0) return;
     if (width == mWidth && height == mHeight) return;
 
@@ -185,18 +180,18 @@ void Window::HandleResize(u32 width, u32 height) {
     mAspectRatio = static_cast<f32>(mWidth) / static_cast<f32>(mHeight);
 
 #ifdef WEBGPU_BACKEND_EMSCRIPTEN
-    // NOTE: sync GLFW window size with the canvas so GLFW queries return correct values
     if (mImpl && mImpl->window) {
         glfwSetWindowSize(mImpl->window, static_cast<int>(width), static_cast<int>(height));
     }
 #endif
 
     for (const auto& [id, cb] : mResizeCallbacks) {
+        (void)id;
         if (cb) cb(mWidth, mHeight);
     }
 }
 
-void Window::SetupCallbacks() {
+void Window::SetupCallbacks() noexcept {
     glfwSetWindowUserPointer(mImpl->window, this);
 
     glfwSetFramebufferSizeCallback(mImpl->window, [](GLFWwindow* window, int width, int height) {
@@ -214,48 +209,42 @@ void Window::SetupCallbacks() {
 }
 
 #ifdef WEBGPU_BACKEND_EMSCRIPTEN
-void Window::SetupEmscriptenResize() {
-    auto resizeCallback = [](int /*eventType*/, const EmscriptenUiEvent* /*event*/,
-                              void* userData) -> bool {
+void Window::SetupEmscriptenResize() noexcept {
+    auto resizeCallback = [](int, const EmscriptenUiEvent*, void* userData) -> EM_BOOL {
         auto* self = static_cast<Window*>(userData);
-        if (!self) return false;
+        if (!self) return EM_FALSE;
 
-        double cssW = 0.0;
-        double cssH = 0.0;
+        double cssW = 0.0, cssH = 0.0;
         emscripten_get_element_css_size("canvas", &cssW, &cssH);
 
         double dpr = emscripten_get_device_pixel_ratio();
         u32 pixelW = static_cast<u32>(cssW * dpr);
         u32 pixelH = static_cast<u32>(cssH * dpr);
 
-        if (pixelW == 0 || pixelH == 0) return false;
+        if (pixelW == 0 || pixelH == 0) return EM_FALSE;
 
-        emscripten_set_canvas_element_size(
-            "canvas", static_cast<int>(pixelW), static_cast<int>(pixelH));
-
+        emscripten_set_canvas_element_size("canvas", static_cast<int>(pixelW), static_cast<int>(pixelH));
         self->HandleResize(pixelW, pixelH);
-        return true;
+        return EM_TRUE;
     };
 
     emscripten_set_resize_callback(EMSCRIPTEN_EVENT_TARGET_WINDOW, this, false, resizeCallback);
 
-    double cssW = 0.0;
-    double cssH = 0.0;
+    double cssW = 0.0, cssH = 0.0;
     emscripten_get_element_css_size("canvas", &cssW, &cssH);
     double dpr = emscripten_get_device_pixel_ratio();
     u32 pixelW = static_cast<u32>(cssW * dpr);
     u32 pixelH = static_cast<u32>(cssH * dpr);
 
     if (pixelW > 0 && pixelH > 0) {
-        emscripten_set_canvas_element_size(
-            "canvas", static_cast<int>(pixelW), static_cast<int>(pixelH));
+        emscripten_set_canvas_element_size("canvas", static_cast<int>(pixelW), static_cast<int>(pixelH));
         HandleResize(pixelW, pixelH);
     }
 }
 #endif
 
 CallbackId Window::AddResizeCallback(ResizeCallback callback) {
-    CallbackId id = mNextCallbackId++;
+    const CallbackId id = mNextCallbackId++;
     mResizeCallbacks.emplace(id, std::move(callback));
     return id;
 }

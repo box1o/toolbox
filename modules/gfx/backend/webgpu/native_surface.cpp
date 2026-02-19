@@ -1,11 +1,10 @@
-//NOTE: webgpu MUST be included BEFORE X11 headers to avoid macro collisions
-#include <webgpu/webgpu_cpp.h>
+#include "surface.hpp"
 
 #include "toolbox/base/base.hpp"
-#include "toolbox/gfx/api/surface.hpp"
-#include "toolbox/gfx/window/window.hpp"
+#include "toolbox/base/logger/logger.hpp"
 
 #include <GLFW/glfw3.h>
+#include <webgpu/webgpu_cpp.h>
 
 #ifdef __EMSCRIPTEN__
 #define GLFW_EXPOSE_NATIVE_EMSCRIPTEN
@@ -36,6 +35,7 @@
 #include <GLFW/glfw3native.h>
 #endif
 
+// X11 macro cleanup (avoid collisions with your enums)
 #ifdef None
 #undef None
 #endif
@@ -58,22 +58,43 @@
 #undef False
 #endif
 
-namespace ct::detail {
+namespace ct::gfx::detail {
 
-wgpu::Surface CreateWindowNativeSurface(const wgpu::Instance& instance, const Window& window) {
+wgpu::Surface CreateWindowNativeSurface(
+    const wgpu::Instance& instance, ref<ct::gfx::Window> window) {
     wgpu::SurfaceDescriptor surfaceDesc{};
     wgpu::Surface surface{nullptr};
 
-#ifndef __EMSCRIPTEN__
-    auto win = static_cast<GLFWwindow*>(window.GetNativeHandle());
+#ifdef __EMSCRIPTEN__
+    log::Info("Creating Emscripten canvas surface");
+    wgpu::EmscriptenSurfaceSourceCanvasHTMLSelector canvasSource{};
+    canvasSource.selector = {"canvas", 6};
+    surfaceDesc.nextInChain = &canvasSource;
+    surface = instance.CreateSurface(&surfaceDesc);
 
-    switch (glfwGetPlatform()) {
+    if (!surface) log::Critical("Failed to create Emscripten WebGPU surface");
+    return surface;
+#else
+    if (!window) {
+        log::Critical("CreateWindowNativeSurface: window is null");
+        return {};
+    }
+
+    auto* glfwWin = static_cast<GLFWwindow*>(window->GetNativeHandle());
+    if (!glfwWin) {
+        log::Critical("CreateWindowNativeSurface: GLFW native handle is null");
+        return {};
+    }
+
+    const int platform = glfwGetPlatform();
+    switch (platform) {
 
 #if defined(GLFW_EXPOSE_NATIVE_X11)
     case GLFW_PLATFORM_X11: {
         log::Info("Creating X11 surface");
         void* xDisplay = reinterpret_cast<void*>(glfwGetX11Display());
-        uint64_t xWindow = static_cast<uint64_t>(glfwGetX11Window(win));
+        const uint64_t xWindow = static_cast<uint64_t>(glfwGetX11Window(glfwWin));
+
         if (xDisplay && xWindow != 0) {
             wgpu::SurfaceSourceXlibWindow xlibSource{};
             xlibSource.display = xDisplay;
@@ -88,7 +109,8 @@ wgpu::Surface CreateWindowNativeSurface(const wgpu::Instance& instance, const Wi
     case GLFW_PLATFORM_WAYLAND: {
         log::Info("Creating Wayland surface");
         void* wlDisplay = reinterpret_cast<void*>(glfwGetWaylandDisplay());
-        void* wlSurface = reinterpret_cast<void*>(glfwGetWaylandWindow(win));
+        void* wlSurface = reinterpret_cast<void*>(glfwGetWaylandWindow(glfwWin));
+
         if (wlDisplay && wlSurface) {
             wgpu::SurfaceSourceWaylandSurface waylandSource{};
             waylandSource.display = wlDisplay;
@@ -102,8 +124,9 @@ wgpu::Surface CreateWindowNativeSurface(const wgpu::Instance& instance, const Wi
 #if defined(GLFW_EXPOSE_NATIVE_WIN32)
     case GLFW_PLATFORM_WIN32: {
         log::Info("Creating Win32 surface");
-        HWND hwnd = glfwGetWin32Window(win);
+        HWND hwnd = glfwGetWin32Window(glfwWin);
         HINSTANCE hinstance = GetModuleHandle(NULL);
+
         if (hwnd && hinstance) {
             wgpu::SurfaceSourceWindowsHWND win32Source{};
             win32Source.hinstance = hinstance;
@@ -116,9 +139,12 @@ wgpu::Surface CreateWindowNativeSurface(const wgpu::Instance& instance, const Wi
 
 #if defined(GLFW_EXPOSE_NATIVE_COCOA)
     case GLFW_PLATFORM_COCOA: {
-        log::Info("Creating Cocoa surface");
+        log::Info("Creating Cocoa/Metal surface");
+
         id metalLayer = [CAMetalLayer layer];
-        NSWindow* nsWindow = glfwGetCocoaWindow(win);
+        NSWindow* nsWindow = glfwGetCocoaWindow(glfwWin);
+        if (!nsWindow) break;
+
         [nsWindow.contentView setWantsLayer:YES];
         [nsWindow.contentView setLayer:metalLayer];
 
@@ -130,23 +156,17 @@ wgpu::Surface CreateWindowNativeSurface(const wgpu::Instance& instance, const Wi
 #endif
 
     default:
-        log::Critical("Unsupported platform for surface creation");
+        log::Critical(
+            "Unsupported GLFW platform for surface creation (platform id = {})", platform);
         break;
     }
-
-#else
-    log::Info("Creating Emscripten canvas surface");
-    wgpu::EmscriptenSurfaceSourceCanvasHTMLSelector canvasSource{};
-    canvasSource.selector = {"canvas", 6};
-    surfaceDesc.nextInChain = &canvasSource;
-    surface = instance.CreateSurface(&surfaceDesc);
-#endif
 
     if (!surface) {
         log::Critical("Failed to create native WebGPU surface");
     }
 
     return surface;
+#endif
 }
 
-} // namespace ct::detail
+} // namespace ct::gfx::detail

@@ -1,31 +1,32 @@
-#include "studio/core/application.hpp"
 #include <toolbox/base/base.hpp>
 #include <toolbox/gfx/gfx.hpp>
 
-#if defined(__EMSCRIPTEN__)
-#include <emscripten.h>
-#endif
+#include <webgpu/webgpu_cpp.h>
 
 using namespace ct;
 int main(int argc, char* argv[]) {
     log::Configure("toolbox");
+    log::Info("Starting application");
 
-    studio::Application app;
+    auto window = TRY(gfx::Window::Create({}));
+    auto device = TRY(gfx::Device::Create({
+        .powerPreference = gfx::PowerPreference::HighPerformance,
+    }));
+    auto queue = TRY(gfx::Queue::Create(device, {}));
+    auto surface = TRY(gfx::Surface::Create(device, window));
+    // auto cmd = TRY(gfx::CommandBuffer::Create({}));
 
-#if defined(__EMSCRIPTEN__)
-    emscripten_set_main_loop_arg(
-        [](void* arg) {
-            auto* app = static_cast<studio::Application*>(arg);
-            if (app->Update()) {
-                emscripten_cancel_main_loop();
-            }
-        },
-        &app, 0, true);
-#else
-    while (true) {
-        if (app.Update()) {
-            break;
-        }
+    auto swapchain = TRY(gfx::Swapchain::Create(surface, device));
+
+    while (!window->ShouldClose()) {
+        window->PollEvents();
+        device->Tick();
+
+        auto frame = swapchain->AcquireNextFrame();
+
+        // cmd stuff
+        //  queue->Submit({cmd});
+
+        swapchain->Present();
     }
-#endif
 }

@@ -1,5 +1,4 @@
 #pragma once
-
 #include <functional>
 #include <string>
 #include <unordered_map>
@@ -15,8 +14,8 @@ using CallbackId = u32;
 
 struct WindowInfo {
     std::string title{"toolbox"};
-    u32 width{800};
-    u32 height{600};
+    u32 width{1280};
+    u32 height{720};
     bool floating{false};
     bool fullscreen{false};
     bool resizable{true};
@@ -48,6 +47,7 @@ public:
     void SetCursorType(CursorType type) noexcept;
 
     [[nodiscard]] void* GetNativeHandle() const noexcept;
+
     [[nodiscard]] bool ShouldClose() const noexcept;
     void PollEvents() const noexcept;
     void Close() noexcept;
@@ -60,9 +60,9 @@ public:
 private:
     Window() = default;
 
-    bool InitializeGLFW() noexcept;
-    bool InitializeWindow(const WindowInfo& info) noexcept;
-    static void TerminateGLFW() noexcept;
+    bool InitGLFW() noexcept;
+    bool CreateWindowGLFW(const WindowInfo& info) noexcept;
+    static void ShutdownGLFW() noexcept;
 
     void SetupCallbacks() noexcept;
     void HandleResize(u32 width, u32 height) noexcept;
@@ -75,7 +75,7 @@ private:
     scope<Impl> mImpl;
 
     std::unordered_map<CallbackId, ResizeCallback> mResizeCallbacks;
-    CallbackId mNextCallbackId{1}; 
+    CallbackId mNextCallbackId{1};
 
     std::string mTitle{"toolbox"};
     u32 mWidth{0};
@@ -90,7 +90,7 @@ private:
     f32 mContentScaleY{1.0f};
 
     static inline u32 sWindowCount{0};
-    static inline bool sInitialized{false};
+    static inline bool sGlfwInit{false};
 };
 
-} // namespace ct
+} // namespace ct::gfx

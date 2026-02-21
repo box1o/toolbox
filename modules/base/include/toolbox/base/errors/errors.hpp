@@ -11,6 +11,8 @@ enum class ErrorType : u8 { CORE = 0, FILE_SYSTEM, NETWORK, PARSE, VALIDATION, G
 
 enum class ErrorCode : u16 {
     SUCCESS = 0,
+    INVALID_STATE,
+    OUT_OF_RANGE,
 
     FILE_NOT_FOUND = 100,
     FILE_ACCESS_DENIED,

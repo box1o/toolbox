@@ -1,5 +1,5 @@
-#include "toolbox/gfx/window/window.hpp"
-#include "toolbox/base/base.hpp"
+#include <toolbox/gfx/window/window.hpp>
+#include <toolbox/base/logger/logger.hpp>
 
 #include <GLFW/glfw3.h>
 
@@ -21,60 +21,55 @@ struct Window::Impl {
     }
 };
 
-namespace detail {
+namespace {
 
-static void ErrorCallback(int error, const char* description) {
-    log::Error("GLFW Error ({}): {}", error, description ? description : "(null)");
+static void GlfwErrorCallback(int error, const char* desc) {
+    log::Error("GLFW Error ({}): {}", error, desc ? desc : "(null)");
 }
 
-[[nodiscard]] static GLFWcursor* CreateGlfwCursor(CursorType type) noexcept {
+static GLFWcursor* MakeCursor(CursorType type) noexcept {
     switch (type) {
-    case CursorType::Arrow:     return glfwCreateStandardCursor(GLFW_ARROW_CURSOR);
-    case CursorType::IBeam:     return glfwCreateStandardCursor(GLFW_IBEAM_CURSOR);
-    case CursorType::Crosshair: return glfwCreateStandardCursor(GLFW_CROSSHAIR_CURSOR);
-    case CursorType::Hand:      return glfwCreateStandardCursor(GLFW_HAND_CURSOR);
-    case CursorType::HResize:   return glfwCreateStandardCursor(GLFW_HRESIZE_CURSOR);
-    case CursorType::VResize:   return glfwCreateStandardCursor(GLFW_VRESIZE_CURSOR);
-    default:                    return nullptr;
+        case CursorType::Arrow:     return glfwCreateStandardCursor(GLFW_ARROW_CURSOR);
+        case CursorType::IBeam:     return glfwCreateStandardCursor(GLFW_IBEAM_CURSOR);
+        case CursorType::Crosshair: return glfwCreateStandardCursor(GLFW_CROSSHAIR_CURSOR);
+        case CursorType::Hand:      return glfwCreateStandardCursor(GLFW_HAND_CURSOR);
+        case CursorType::HResize:   return glfwCreateStandardCursor(GLFW_HRESIZE_CURSOR);
+        case CursorType::VResize:   return glfwCreateStandardCursor(GLFW_VRESIZE_CURSOR);
+        default:                    return nullptr;
     }
 }
 
-} // namespace detail
+} // namespace
 
 result<ref<Window>> Window::Create(const WindowInfo& info) noexcept {
-    // NOTE: Window() is private, so we cannot use make_shared/createRef here.
     ref<Window> win(new Window());
     win->mImpl = scope<Impl>(new Impl());
 
-    if (!win->InitializeGLFW()) {
-        return err(ErrorCode::GRAPHICS_INIT_FAILED, "Failed to initialize GLFW");
+    if (!win->InitGLFW()) {
+        return err(ErrorCode::GRAPHICS_INIT_FAILED, "Window: GLFW init failed");
     }
-    if (!win->InitializeWindow(info)) {
-        return err(ErrorCode::GRAPHICS_INIT_FAILED, "Failed to create window");
+    if (!win->CreateWindowGLFW(info)) {
+        return err(ErrorCode::GRAPHICS_INIT_FAILED, "Window: create failed");
     }
     return ok(win);
 }
 
 Window::~Window() { Close(); }
 
-bool Window::InitializeGLFW() noexcept {
-    if (sInitialized) return true;
+bool Window::InitGLFW() noexcept {
+    if (sGlfwInit) return true;
 
-    glfwSetErrorCallback(detail::ErrorCallback);
+    glfwSetErrorCallback(GlfwErrorCallback);
     if (!glfwInit()) {
-        log::Critical("Failed to initialize GLFW");
+        log::Critical("GLFW init failed");
         return false;
     }
 
-    sInitialized = true;
+    sGlfwInit = true;
     return true;
 }
 
-bool Window::InitializeWindow(const WindowInfo& info) noexcept {
-#if defined(GLFW_PLATFORM_X11) && defined(GLFW_PLATFORM)
-    glfwInitHint(GLFW_PLATFORM, GLFW_PLATFORM_X11);
-#endif
-
+bool Window::CreateWindowGLFW(const WindowInfo& info) noexcept {
     glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
     glfwWindowHint(GLFW_FLOATING, info.floating ? GLFW_TRUE : GLFW_FALSE);
     glfwWindowHint(GLFW_RESIZABLE, info.resizable ? GLFW_TRUE : GLFW_FALSE);
@@ -91,7 +86,7 @@ bool Window::InitializeWindow(const WindowInfo& info) noexcept {
 
     if (!mImpl->window) {
         log::Critical("Failed to create GLFW window");
-        if (sWindowCount == 0) TerminateGLFW();
+        if (sWindowCount == 0) ShutdownGLFW();
         return false;
     }
 
@@ -117,10 +112,10 @@ bool Window::InitializeWindow(const WindowInfo& info) noexcept {
     return true;
 }
 
-void Window::TerminateGLFW() noexcept {
-    if (!sInitialized) return;
+void Window::ShutdownGLFW() noexcept {
+    if (!sGlfwInit) return;
     glfwTerminate();
-    sInitialized = false;
+    sGlfwInit = false;
 }
 
 void* Window::GetNativeHandle() const noexcept {
@@ -128,7 +123,8 @@ void* Window::GetNativeHandle() const noexcept {
 }
 
 bool Window::ShouldClose() const noexcept {
-    return (!mImpl || !mImpl->window) ? true : (glfwWindowShouldClose(mImpl->window) != 0);
+    if (!mImpl || !mImpl->window) return true;
+    return glfwWindowShouldClose(mImpl->window) != 0;
 }
 
 void Window::PollEvents() const noexcept { glfwPollEvents(); }
@@ -141,32 +137,33 @@ void Window::Close() noexcept {
     mImpl->window = nullptr;
 
     if (sWindowCount > 0) --sWindowCount;
-    if (sWindowCount == 0) TerminateGLFW();
+    if (sWindowCount == 0) ShutdownGLFW();
 }
 
 void Window::SetCursorMode(CursorMode mode) noexcept {
     if (!mImpl || !mImpl->window) return;
 
     mCursorMode = mode;
-
     int value = GLFW_CURSOR_NORMAL;
+
     switch (mode) {
-    case CursorMode::Normal:   value = GLFW_CURSOR_NORMAL;   break;
-    case CursorMode::Hidden:   value = GLFW_CURSOR_HIDDEN;   break;
-    case CursorMode::Disabled: value = GLFW_CURSOR_DISABLED; break;
+        case CursorMode::Normal:   value = GLFW_CURSOR_NORMAL; break;
+        case CursorMode::Hidden:   value = GLFW_CURSOR_HIDDEN; break;
+        case CursorMode::Disabled: value = GLFW_CURSOR_DISABLED; break;
     }
+
     glfwSetInputMode(mImpl->window, GLFW_CURSOR, value);
 }
 
 void Window::SetCursorType(CursorType type) noexcept {
     if (!mImpl || !mImpl->window) return;
 
-    GLFWcursor* newCursor = detail::CreateGlfwCursor(type);
+    GLFWcursor* newCursor = MakeCursor(type);
     if (!newCursor) return;
 
     glfwSetCursor(mImpl->window, newCursor);
-
     if (mImpl->cursor) glfwDestroyCursor(mImpl->cursor);
+
     mImpl->cursor = newCursor;
     mCursorType = type;
 }
@@ -185,7 +182,7 @@ void Window::HandleResize(u32 width, u32 height) noexcept {
     }
 #endif
 
-    for (const auto& [id, cb] : mResizeCallbacks) {
+    for (auto& [id, cb] : mResizeCallbacks) {
         (void)id;
         if (cb) cb(mWidth, mHeight);
     }
@@ -194,14 +191,14 @@ void Window::HandleResize(u32 width, u32 height) noexcept {
 void Window::SetupCallbacks() noexcept {
     glfwSetWindowUserPointer(mImpl->window, this);
 
-    glfwSetFramebufferSizeCallback(mImpl->window, [](GLFWwindow* window, int width, int height) {
-        auto* self = static_cast<Window*>(glfwGetWindowUserPointer(window));
+    glfwSetFramebufferSizeCallback(mImpl->window, [](GLFWwindow* w, int width, int height) {
+        auto* self = static_cast<Window*>(glfwGetWindowUserPointer(w));
         if (!self) return;
         self->HandleResize(static_cast<u32>(width), static_cast<u32>(height));
     });
 
-    glfwSetWindowContentScaleCallback(mImpl->window, [](GLFWwindow* window, float sx, float sy) {
-        auto* self = static_cast<Window*>(glfwGetWindowUserPointer(window));
+    glfwSetWindowContentScaleCallback(mImpl->window, [](GLFWwindow* w, float sx, float sy) {
+        auto* self = static_cast<Window*>(glfwGetWindowUserPointer(w));
         if (!self) return;
         self->mContentScaleX = sx;
         self->mContentScaleY = sy;
@@ -210,16 +207,16 @@ void Window::SetupCallbacks() noexcept {
 
 #ifdef WEBGPU_BACKEND_EMSCRIPTEN
 void Window::SetupEmscriptenResize() noexcept {
-    auto resizeCallback = [](int, const EmscriptenUiEvent*, void* userData) -> EM_BOOL {
+    auto cb = [](int, const EmscriptenUiEvent*, void* userData) -> EM_BOOL {
         auto* self = static_cast<Window*>(userData);
         if (!self) return EM_FALSE;
 
         double cssW = 0.0, cssH = 0.0;
         emscripten_get_element_css_size("canvas", &cssW, &cssH);
 
-        double dpr = emscripten_get_device_pixel_ratio();
-        u32 pixelW = static_cast<u32>(cssW * dpr);
-        u32 pixelH = static_cast<u32>(cssH * dpr);
+        const double dpr = emscripten_get_device_pixel_ratio();
+        const u32 pixelW = static_cast<u32>(cssW * dpr);
+        const u32 pixelH = static_cast<u32>(cssH * dpr);
 
         if (pixelW == 0 || pixelH == 0) return EM_FALSE;
 
@@ -228,13 +225,14 @@ void Window::SetupEmscriptenResize() noexcept {
         return EM_TRUE;
     };
 
-    emscripten_set_resize_callback(EMSCRIPTEN_EVENT_TARGET_WINDOW, this, false, resizeCallback);
+    emscripten_set_resize_callback(EMSCRIPTEN_EVENT_TARGET_WINDOW, this, false, cb);
 
     double cssW = 0.0, cssH = 0.0;
     emscripten_get_element_css_size("canvas", &cssW, &cssH);
-    double dpr = emscripten_get_device_pixel_ratio();
-    u32 pixelW = static_cast<u32>(cssW * dpr);
-    u32 pixelH = static_cast<u32>(cssH * dpr);
+
+    const double dpr = emscripten_get_device_pixel_ratio();
+    const u32 pixelW = static_cast<u32>(cssW * dpr);
+    const u32 pixelH = static_cast<u32>(cssH * dpr);
 
     if (pixelW > 0 && pixelH > 0) {
         emscripten_set_canvas_element_size("canvas", static_cast<int>(pixelW), static_cast<int>(pixelH));
@@ -251,14 +249,14 @@ CallbackId Window::AddResizeCallback(ResizeCallback callback) {
 
 void Window::RemoveResizeCallback(CallbackId id) { mResizeCallbacks.erase(id); }
 
-f32 Window::GetContentScaleX() const noexcept { return mContentScaleX; }
-f32 Window::GetContentScaleY() const noexcept { return mContentScaleY; }
 const std::string& Window::GetTitle() const noexcept { return mTitle; }
 u32 Window::GetWidth() const noexcept { return mWidth; }
 u32 Window::GetHeight() const noexcept { return mHeight; }
-bool Window::IsFullScreen() const noexcept { return mFullscreen; }
 f32 Window::GetAspectRatio() const noexcept { return mAspectRatio; }
+bool Window::IsFullScreen() const noexcept { return mFullscreen; }
+f32 Window::GetContentScaleX() const noexcept { return mContentScaleX; }
+f32 Window::GetContentScaleY() const noexcept { return mContentScaleY; }
 CursorMode Window::GetCursorMode() const noexcept { return mCursorMode; }
 CursorType Window::GetCursorType() const noexcept { return mCursorType; }
 
-} // namespace ct
+} // namespace ct::gfx

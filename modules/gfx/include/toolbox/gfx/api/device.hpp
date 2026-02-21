@@ -1,7 +1,7 @@
 #pragma once
-#include "toolbox/base/base.hpp"
-#include "toolbox/gfx/common.hpp"
-#include <functional>
+#include <toolbox/base/base.hpp>
+#include <toolbox/gfx/api/types.hpp>
+#include <toolbox/gfx/common.hpp>
 
 namespace ct::gfx {
 
@@ -10,8 +10,8 @@ struct AdapterInfo {
     std::string architecture{};
     std::string device{};
     std::string description{};
-    u32 backendType{};
-    u32 adapterType{};
+    u32 backendType{0};
+    u32 adapterType{0};
 };
 
 struct Limits {
@@ -22,41 +22,36 @@ struct Limits {
     u32 maxBindGroups{0};
 };
 
-enum class PowerPreference : u8 {
-    LowPower,
-    HighPerformance,
-};
-
 struct DeviceDesc {
+    Backend backend{Backend::Auto};
     PowerPreference powerPreference{PowerPreference::HighPerformance};
+    bool enableValidation{true};
     DebugConfig debug{};
+    std::string debugName{"Device"};
 };
 
-enum class Status : u8 {
-    Success = 0,
-    Error = 1,
+// Not included by gfx.hpp on purpose.
+// Used by backend code (Surface/Swapchain later) without exposing WebGPU headers.
+struct DeviceNativeHandles {
+    void* instance{nullptr};
+    void* adapter{nullptr};
+    void* device{nullptr};
+    void* queue{nullptr};
 };
 
 class Device {
 public:
-    using DeviceCreatedCallback = std::function<void(Status status, void* userData)>;
-    using AdapterCreatedCallback = std::function<void(Status status, void* userData)>;
-
-public:
     virtual ~Device() = default;
-
-    [[nodiscard]] virtual void* GetInstance() const noexcept = 0;
-    [[nodiscard]] virtual void* GetAdapter() const noexcept = 0;
-    [[nodiscard]] virtual void* GetDevice() const noexcept = 0;
-    [[nodiscard]] virtual void* GetQueue() const noexcept = 0;
 
     [[nodiscard]] virtual const AdapterInfo& GetAdapterInfo() const noexcept = 0;
     [[nodiscard]] virtual const Limits& GetLimits() const noexcept = 0;
 
-    virtual void Tick() const = 0;
 
-    // NOTE: async creation is not implemented in this backend yet; the parameter is kept for API compatibility.
-    [[nodiscard]] static result<ref<Device>> Create(const DeviceDesc& desc, bool async = false) noexcept;
+    [[nodiscard]] virtual DeviceNativeHandles GetNative() const noexcept = 0;
+
+    virtual void Tick() const noexcept = 0;
+
+    [[nodiscard]] static result<ref<Device>> Create(const DeviceDesc& desc) noexcept;
 
 protected:
     Device() = default;

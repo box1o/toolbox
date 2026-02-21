@@ -1,7 +1,7 @@
-#include "surface.hpp"
-
+#include "swapchain.hpp"
 #include "toolbox/base/base.hpp"
-#include "toolbox/base/logger/logger.hpp"
+#include "toolbox/gfx/api/device.hpp"
+#include "toolbox/gfx/window/window.hpp"
 
 #include <GLFW/glfw3.h>
 #include <webgpu/webgpu_cpp.h>
@@ -60,8 +60,7 @@
 
 namespace ct::gfx::detail {
 
-wgpu::Surface CreateWindowNativeSurface(
-    const wgpu::Instance& instance, ref<ct::gfx::Window> window) {
+wgpu::Surface CreateWindowNativeSurface(ref<Device> device, ref<Window> window) {
     wgpu::SurfaceDescriptor surfaceDesc{};
     wgpu::Surface surface{nullptr};
 
@@ -86,6 +85,12 @@ wgpu::Surface CreateWindowNativeSurface(
         return {};
     }
 
+    auto* instance = (wgpu::Instance*)device->GetInstance();
+    if (!instance) {
+        log::Critical("CreateWindowNativeSurface: device instance is null");
+        return {};
+    }
+
     const int platform = glfwGetPlatform();
     switch (platform) {
 
@@ -100,7 +105,7 @@ wgpu::Surface CreateWindowNativeSurface(
             xlibSource.display = xDisplay;
             xlibSource.window = xWindow;
             surfaceDesc.nextInChain = &xlibSource;
-            surface = instance.CreateSurface(&surfaceDesc);
+            surface = instance->CreateSurface(&surfaceDesc);
         }
     } break;
 #endif
@@ -116,7 +121,7 @@ wgpu::Surface CreateWindowNativeSurface(
             waylandSource.display = wlDisplay;
             waylandSource.surface = wlSurface;
             surfaceDesc.nextInChain = &waylandSource;
-            surface = instance.CreateSurface(&surfaceDesc);
+            surface = instance->CreateSurface(&surfaceDesc);
         }
     } break;
 #endif
@@ -132,7 +137,7 @@ wgpu::Surface CreateWindowNativeSurface(
             win32Source.hinstance = hinstance;
             win32Source.hwnd = hwnd;
             surfaceDesc.nextInChain = &win32Source;
-            surface = instance.CreateSurface(&surfaceDesc);
+            surface = instance->CreateSurface(&surfaceDesc);
         }
     } break;
 #endif
@@ -151,7 +156,7 @@ wgpu::Surface CreateWindowNativeSurface(
         wgpu::SurfaceSourceMetalLayer cocoaSource{};
         cocoaSource.layer = metalLayer;
         surfaceDesc.nextInChain = &cocoaSource;
-        surface = instance.CreateSurface(&surfaceDesc);
+        surface = instance->CreateSurface(&surfaceDesc);
     } break;
 #endif
 

@@ -16,7 +16,10 @@ int main(int argc, char* argv[]) {
     auto surface = TRY(gfx::Surface::Create(device, window));
     // auto cmd = TRY(gfx::CommandBuffer::Create({}));
 
-    auto swapchain = TRY(gfx::Swapchain::Create(surface, device));
+    auto swapchain = TRY(gfx::Swapchain::Create(device, window));
+
+
+    auto cmd = TRY(gfx::CommandBuffer::Create({}));
 
     while (!window->ShouldClose()) {
         window->PollEvents();

@@ -1,13 +1,14 @@
 #pragma once
-
 #include <toolbox/base/base.hpp>
-#include <webgpu/webgpu_cpp.h>
-
-#include "toolbox/gfx/window/window.hpp"
-#include "toolbox/gfx/api/device.hpp"
 
 namespace ct::gfx {
 
+class Device;
+class Window;
+
+struct SurfaceDesc {};
+
+// Minimal surface abstraction (fits your existing style)
 class Surface {
 public:
     virtual ~Surface() = default;
@@ -23,7 +24,8 @@ public:
 
     [[nodiscard]] virtual void* GetSurface() const noexcept = 0;
 
-    [[nodiscard]] static result<ref<Surface>> Create(ref<Device> device, ref<Window> window) noexcept;
+    [[nodiscard]] static result<ref<Surface>> Create(
+        ref<Device> device, ref<Window> window, const SurfaceDesc& desc = {}) noexcept;
 
 protected:
     Surface() = default;

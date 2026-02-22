@@ -1,6 +1,7 @@
 #pragma once
 #include <toolbox/base/base.hpp>
 #include <toolbox/gfx/api/types.hpp>
+#include <vector>
 
 namespace ct::gfx {
 

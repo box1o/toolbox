@@ -52,7 +52,7 @@ public:
     void PollEvents() const noexcept;
     void Close() noexcept;
 
-    [[nodiscard]] CallbackId AddResizeCallback(ResizeCallback callback);
+    CallbackId AddResizeCallback(ResizeCallback callback);
     void RemoveResizeCallback(CallbackId id);
 
     [[nodiscard]] static result<ref<Window>> Create(const WindowInfo& info = {}) noexcept;

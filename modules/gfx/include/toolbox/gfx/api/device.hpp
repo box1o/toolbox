@@ -51,7 +51,7 @@ public:
 
     virtual void Tick() const noexcept = 0;
 
-    [[nodiscard]] static result<ref<Device>> Create(const DeviceDesc& desc) noexcept;
+    [[nodiscard]] static result<ref<Device>> Create(const DeviceDesc& desc = {}) noexcept;
 
 protected:
     Device() = default;

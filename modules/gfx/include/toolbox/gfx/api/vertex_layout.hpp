@@ -36,19 +36,12 @@ struct VertexLayoutDesc {
         return *this;
     }
 
-    VertexLayoutDesc& Attribute(u32 location, u32 binding, VertexFormat format, u32 offset, std::string name = {}) {
+    VertexLayoutDesc& Attribute(
+        u32 location, u32 binding, VertexFormat format, u32 offset, std::string name = {}) {
         attributes.push_back({location, binding, format, offset, std::move(name)});
         return *this;
     }
 };
 
-class VertexLayout {
-public:
-    explicit VertexLayout(VertexLayoutDesc desc) : mDesc(std::move(desc)) {}
-    [[nodiscard]] const VertexLayoutDesc& GetDesc() const noexcept { return mDesc; }
-
-private:
-    VertexLayoutDesc mDesc;
-};
 
 } // namespace ct::gfx

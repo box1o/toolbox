@@ -65,7 +65,7 @@ template <typename T>
 #define TRY_VOID(expr)                                                                             \
     do {                                                                                           \
         auto _try_result = (expr);                                                                 \
-        if (!_try_result) return _try_result.error();                                              \
+        if (!_try_result) std::abort();                                                            \
     } while (0)
 
 #define TRY(expr)                                                                                  \

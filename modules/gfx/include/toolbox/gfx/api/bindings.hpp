@@ -11,13 +11,14 @@ class TextureView;
 class Sampler;
 
 enum class ShaderStageFlags : u32 {
-    None     = 0,
-    Vertex   = 1u << 0,
+    None = 0,
+    Vertex = 1u << 0,
     Fragment = 1u << 1,
-    Compute  = 1u << 2,
+    Compute = 1u << 2,
 };
 
-[[nodiscard]] constexpr ShaderStageFlags operator|(ShaderStageFlags a, ShaderStageFlags b) noexcept {
+[[nodiscard]] constexpr ShaderStageFlags operator|(
+    ShaderStageFlags a, ShaderStageFlags b) noexcept {
     return static_cast<ShaderStageFlags>(static_cast<u32>(a) | static_cast<u32>(b));
 }
 [[nodiscard]] constexpr bool HasFlag(ShaderStageFlags v, ShaderStageFlags f) noexcept {

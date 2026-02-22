@@ -1,6 +1,5 @@
 #include <toolbox/gfx/api/command_encoder.hpp>
 #include <toolbox/base/logger/logger.hpp>
-#include <cstdlib>
 
 #if defined(USE_WEBGPU_BACKEND)
 #include "../../backend/webgpu/command_impl.hpp"

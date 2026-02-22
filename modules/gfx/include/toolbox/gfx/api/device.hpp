@@ -30,8 +30,6 @@ struct DeviceDesc {
     std::string debugName{"Device"};
 };
 
-// Not included by gfx.hpp on purpose.
-// Used by backend code (Surface/Swapchain later) without exposing WebGPU headers.
 struct DeviceNativeHandles {
     void* instance{nullptr};
     void* adapter{nullptr};
@@ -50,7 +48,6 @@ public:
     [[nodiscard]] virtual DeviceNativeHandles GetNative() const noexcept = 0;
 
     virtual void Tick() const noexcept = 0;
-
     [[nodiscard]] static result<ref<Device>> Create(const DeviceDesc& desc = {}) noexcept;
 
 protected:

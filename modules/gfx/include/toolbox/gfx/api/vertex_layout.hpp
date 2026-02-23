@@ -43,5 +43,14 @@ struct VertexLayoutDesc {
     }
 };
 
+class VertexLayout {
+public:
+    explicit VertexLayout(VertexLayoutDesc desc) : mDesc(std::move(desc)) {}
+    [[nodiscard]] const VertexLayoutDesc& GetDesc() const noexcept { return mDesc; }
+
+private:
+    VertexLayoutDesc mDesc;
+};
+
 
 } // namespace ct::gfx

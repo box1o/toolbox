@@ -1,7 +1,9 @@
 #include "device_impl.hpp"
+#include "toolbox/base/errors/result.hpp"
 #include <toolbox/base/logger/logger.hpp>
 
 #include <atomic>
+#include <cstdlib>
 #include <memory>
 
 #if defined(WEBGPU_BACKEND_EMSCRIPTEN)
@@ -34,11 +36,25 @@ static inline void PumpUntilDone(wgpu::Instance& instance, const std::atomic_boo
 
 DeviceImpl::DeviceImpl(const DeviceDesc& desc) : mDesc(desc) {}
 
+result<void> DeviceImpl::Initialize() noexcept {
+    if (auto res = CreateInstance(); !res) return res;
+    if (auto res = RequestAdapter(); !res) return res;
+    if (auto res = RequestDevice(); !res) return res;
+
+    QueryAdapterInfo();
+    QueryLimits();
+
+    return ok();
+}
+
 wgpu::PowerPreference DeviceImpl::ToWGPU(PowerPreference p) noexcept {
     switch (p) {
-        case PowerPreference::LowPower:        return wgpu::PowerPreference::LowPower;
-        case PowerPreference::HighPerformance: return wgpu::PowerPreference::HighPerformance;
-        default:                               return wgpu::PowerPreference::Undefined;
+    case PowerPreference::LowPower:
+        return wgpu::PowerPreference::LowPower;
+    case PowerPreference::HighPerformance:
+        return wgpu::PowerPreference::HighPerformance;
+    default:
+        return wgpu::PowerPreference::Undefined;
     }
 }
 
@@ -48,11 +64,7 @@ std::string DeviceImpl::ToString(wgpu::StringView sv) {
 }
 
 void DeviceImpl::OnDeviceLost(
-    const wgpu::Device&,
-    wgpu::DeviceLostReason,
-    wgpu::StringView message,
-    DeviceImpl* self)
-{
+    const wgpu::Device&, wgpu::DeviceLostReason, wgpu::StringView message, DeviceImpl* self) {
     if (!self) return;
     if (self->mDesc.debug.deviceLostLogs) {
         log::Warn("[wgpu] Device lost: {}", ToString(message));
@@ -60,11 +72,7 @@ void DeviceImpl::OnDeviceLost(
 }
 
 void DeviceImpl::OnUncapturedError(
-    const wgpu::Device&,
-    wgpu::ErrorType type,
-    wgpu::StringView message,
-    DeviceImpl* self)
-{
+    const wgpu::Device&, wgpu::ErrorType type, wgpu::StringView message, DeviceImpl* self) {
     if (!self) return;
 
     const auto text = ToString(message);
@@ -73,9 +81,12 @@ void DeviceImpl::OnUncapturedError(
     } else {
         log::Error("[wgpu] Uncaptured error: {}", text);
     }
+
+    // Fail fast on GPU validation/runtime errors to avoid submitting invalid work.
+    std::abort();
 }
 
-bool DeviceImpl::CreateInstance() noexcept {
+result<void> DeviceImpl::CreateInstance() noexcept {
 #if defined(WEBGPU_BACKEND_EMSCRIPTEN)
     mInstance = wgpu::CreateInstance(nullptr);
     return mInstance != nullptr;
@@ -86,22 +97,27 @@ bool DeviceImpl::CreateInstance() noexcept {
     id.requiredFeatures = &kTimedWaitAny;
 
     mInstance = wgpu::CreateInstance(&id);
-    return mInstance != nullptr;
+    if (!mInstance) {
+        return err(ErrorCode::GRAPHICS_INIT_FAILED, "Device: failed to create instance");
+    }
 #endif
+    return ok();
 }
 
-bool DeviceImpl::RequestAdapter() noexcept {
-    if (!mInstance) return false;
+result<void> DeviceImpl::RequestAdapter() noexcept {
+    if (!mInstance) {
+        return err(
+            ErrorCode::GRAPHICS_RESOURCE_CREATION_FAILED, "Device: instance not initialized");
+    }
 
     wgpu::RequestAdapterOptions opts{};
     opts.powerPreference = ToWGPU(mDesc.powerPreference);
 
     auto state = std::make_shared<AdapterReqState>();
 
-    mInstance.RequestAdapter(
-        &opts,
-        wgpu::CallbackMode::AllowSpontaneous,
-        [state](wgpu::RequestAdapterStatus status, wgpu::Adapter adapter, wgpu::StringView message) {
+    mInstance.RequestAdapter(&opts, wgpu::CallbackMode::AllowSpontaneous,
+        [state](
+            wgpu::RequestAdapterStatus status, wgpu::Adapter adapter, wgpu::StringView message) {
             state->message = DeviceImpl::ToString(message);
             state->adapter = (status == wgpu::RequestAdapterStatus::Success) ? adapter : nullptr;
             state->done.store(true, std::memory_order_release);
@@ -110,36 +126,32 @@ bool DeviceImpl::RequestAdapter() noexcept {
     PumpUntilDone(mInstance, state->done);
 
     if (!state->adapter) {
-        if (!state->message.empty()) log::Error("[wgpu] Adapter request failed: {}", state->message);
-        return false;
+        if (!state->message.empty())
+            log::Error("[wgpu] Adapter request failed: {}", state->message);
+        return err(
+            ErrorCode::GRAPHICS_RESOURCE_CREATION_FAILED, "Device: failed to request adapter");
     }
 
     mAdapter = state->adapter;
-    return true;
+    return ok();
 }
 
-bool DeviceImpl::RequestDevice() noexcept {
-    if (!mAdapter) return false;
+result<void> DeviceImpl::RequestDevice() noexcept {
+    if (!mAdapter)
+        return err(ErrorCode::GRAPHICS_RESOURCE_CREATION_FAILED, "Device: adapter not initialized");
 
     wgpu::DeviceDescriptor dd{};
 
-    dd.SetDeviceLostCallback(
-        wgpu::CallbackMode::AllowSpontaneous,
-        &DeviceImpl::OnDeviceLost,
-        this);
+    dd.SetDeviceLostCallback(wgpu::CallbackMode::AllowSpontaneous, &DeviceImpl::OnDeviceLost, this);
 
-    dd.SetUncapturedErrorCallback(
-        &DeviceImpl::OnUncapturedError,
-        this);
+    dd.SetUncapturedErrorCallback(&DeviceImpl::OnUncapturedError, this);
 
     auto state = std::make_shared<DeviceReqState>();
 
-    mAdapter.RequestDevice(
-        &dd,
-        wgpu::CallbackMode::AllowSpontaneous,
+    mAdapter.RequestDevice(&dd, wgpu::CallbackMode::AllowSpontaneous,
         [state](wgpu::RequestDeviceStatus status, wgpu::Device device, wgpu::StringView message) {
             state->message = DeviceImpl::ToString(message);
-            state->device  = (status == wgpu::RequestDeviceStatus::Success) ? device : nullptr;
+            state->device = (status == wgpu::RequestDeviceStatus::Success) ? device : nullptr;
             state->done.store(true, std::memory_order_release);
         });
 
@@ -147,12 +159,13 @@ bool DeviceImpl::RequestDevice() noexcept {
 
     if (!state->device) {
         if (!state->message.empty()) log::Error("[wgpu] Device request failed: {}", state->message);
-        return false;
+        return err(
+            ErrorCode::GRAPHICS_RESOURCE_CREATION_FAILED, "Device: failed to request device");
     }
 
     mDevice = state->device;
-    mQueue  = mDevice.GetQueue();
-    return (mDevice != nullptr) && (mQueue != nullptr);
+    mQueue = mDevice.GetQueue();
+    return ok();
 }
 
 void DeviceImpl::QueryAdapterInfo() noexcept {
@@ -161,12 +174,12 @@ void DeviceImpl::QueryAdapterInfo() noexcept {
     wgpu::AdapterInfo ai{};
     mAdapter.GetInfo(&ai);
 
-    mAdapterInfo.vendor       = ToString(ai.vendor);
+    mAdapterInfo.vendor = ToString(ai.vendor);
     mAdapterInfo.architecture = ToString(ai.architecture);
-    mAdapterInfo.device       = ToString(ai.device);
-    mAdapterInfo.description  = ToString(ai.description);
-    mAdapterInfo.backendType  = static_cast<u32>(ai.backendType);
-    mAdapterInfo.adapterType  = static_cast<u32>(ai.adapterType);
+    mAdapterInfo.device = ToString(ai.device);
+    mAdapterInfo.description = ToString(ai.description);
+    mAdapterInfo.backendType = static_cast<u32>(ai.backendType);
+    mAdapterInfo.adapterType = static_cast<u32>(ai.adapterType);
 }
 
 void DeviceImpl::QueryLimits() noexcept {
@@ -175,19 +188,19 @@ void DeviceImpl::QueryLimits() noexcept {
     wgpu::Limits lim{};
     mDevice.GetLimits(&lim);
 
-    mLimits.maxVertexAttributes   = lim.maxVertexAttributes;
-    mLimits.maxColorAttachments   = lim.maxColorAttachments;
+    mLimits.maxVertexAttributes = lim.maxVertexAttributes;
+    mLimits.maxColorAttachments = lim.maxColorAttachments;
     mLimits.maxTextureDimension2D = lim.maxTextureDimension2D;
-    mLimits.maxBufferSize         = lim.maxBufferSize;
-    mLimits.maxBindGroups         = lim.maxBindGroups;
+    mLimits.maxBufferSize = lim.maxBufferSize;
+    mLimits.maxBindGroups = lim.maxBindGroups;
 }
 
 DeviceNativeHandles DeviceImpl::GetNative() const noexcept {
     DeviceNativeHandles h{};
     h.instance = (void*)mInstance.Get();
-    h.adapter  = (void*)mAdapter.Get();
-    h.device   = (void*)mDevice.Get();
-    h.queue    = (void*)mQueue.Get();
+    h.adapter = (void*)mAdapter.Get();
+    h.device = (void*)mDevice.Get();
+    h.queue = (void*)mQueue.Get();
     return h;
 }
 

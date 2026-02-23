@@ -3,8 +3,8 @@
 namespace ct::gfx {
 
 struct DebugConfig {
-    bool verboseErrors{false};
-    bool deviceLostLogs{true};
+    bool verboseErrors{true};
+    bool deviceLostLogs{false};
 };
 
 } // namespace ct::gfx

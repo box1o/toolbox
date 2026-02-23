@@ -60,8 +60,8 @@ public:
 private:
     Window() = default;
 
-    bool InitGLFW() noexcept;
-    bool CreateWindowGLFW(const WindowInfo& info) noexcept;
+    result<void> InitGLFW() noexcept;
+    result<void> CreateWindowGLFW(const WindowInfo& info) noexcept;
     static void ShutdownGLFW() noexcept;
 
     void SetupCallbacks() noexcept;

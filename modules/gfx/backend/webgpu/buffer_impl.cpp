@@ -8,8 +8,8 @@ namespace ct::gfx::webgpu {
 wgpu::BufferUsage BufferImpl::ToWGPUUsage(BufferUsageFlags usage) noexcept {
     wgpu::BufferUsage out = wgpu::BufferUsage::None;
 
-    if (HasFlag(usage, BufferUsageFlags::Vertex))  out |= wgpu::BufferUsage::Vertex;
-    if (HasFlag(usage, BufferUsageFlags::Index))   out |= wgpu::BufferUsage::Index;
+    if (HasFlag(usage, BufferUsageFlags::Vertex)) out |= wgpu::BufferUsage::Vertex;
+    if (HasFlag(usage, BufferUsageFlags::Index)) out |= wgpu::BufferUsage::Index;
     if (HasFlag(usage, BufferUsageFlags::Uniform)) out |= wgpu::BufferUsage::Uniform;
     if (HasFlag(usage, BufferUsageFlags::Storage)) out |= wgpu::BufferUsage::Storage;
     if (HasFlag(usage, BufferUsageFlags::CopySrc)) out |= wgpu::BufferUsage::CopySrc;
@@ -18,22 +18,23 @@ wgpu::BufferUsage BufferImpl::ToWGPUUsage(BufferUsageFlags usage) noexcept {
     return out;
 }
 
-bool BufferImpl::Init(ref<Device> device, const BufferDesc& desc) noexcept {
-    if (!device) return false;
+result<void> BufferImpl::Initialize(ref<Device> device, const BufferDesc& desc) noexcept {
+    if (!device) return err(ErrorCode::INVALID_ARGUMENT, "BufferImpl: device null");
     if (desc.size == 0) {
         log::Error("BufferImpl: size=0");
-        return false;
+        return err(ErrorCode::INVALID_ARGUMENT, "BufferImpl: size=0");
     }
 
     auto* dev = dynamic_cast<DeviceImpl*>(device.get());
     if (!dev) {
         log::Error("BufferImpl: device is not WebGPU device");
-        return false;
+        return err(ErrorCode::INVALID_ARGUMENT, "BufferImpl: device is not WebGPU device");
     }
 
     mDevice = dev->DeviceHandle();
-    mQueue  = dev->QueueHandle();
-    if (!mDevice || !mQueue) return false;
+    mQueue = dev->QueueHandle();
+    if (!mDevice || !mQueue)
+        return err(ErrorCode::INVALID_STATE, "BufferImpl: device or queue not initialized");
 
     mSize = desc.size;
     mUsage = desc.usage;
@@ -43,12 +44,17 @@ bool BufferImpl::Init(ref<Device> device, const BufferDesc& desc) noexcept {
     }
 
     wgpu::BufferDescriptor bd{};
-    bd.size  = mSize;
+    bd.size = mSize;
     bd.usage = ToWGPUUsage(mUsage);
     if (!desc.debugName.empty()) bd.label = desc.debugName.c_str();
 
     mBuffer = mDevice.CreateBuffer(&bd);
-    return mBuffer != nullptr;
+    if (!mBuffer) {
+        log::Error("BufferImpl: failed to create buffer");
+        return err(
+            ErrorCode::GRAPHICS_RESOURCE_CREATION_FAILED, "BufferImpl: failed to create buffer");
+    }
+    return ok();
 }
 
 result<void> BufferImpl::Update(const void* data, u64 size, u64 offset) noexcept {

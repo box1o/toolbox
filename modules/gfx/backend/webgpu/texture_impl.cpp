@@ -12,51 +12,65 @@ static inline u32 AlignTo(u32 v, u32 a) { return (v + (a - 1)) & ~(a - 1); }
 
 wgpu::TextureFormat TextureImpl::ToWGPU(TextureFormat fmt) noexcept {
     switch (fmt) {
-        case TextureFormat::RGBA8Unorm:      return wgpu::TextureFormat::RGBA8Unorm;
-        case TextureFormat::RGBA8UnormSrgb:  return wgpu::TextureFormat::RGBA8UnormSrgb;
-        case TextureFormat::BGRA8Unorm:      return wgpu::TextureFormat::BGRA8Unorm;
-        case TextureFormat::BGRA8UnormSrgb:  return wgpu::TextureFormat::BGRA8UnormSrgb;
-        case TextureFormat::Depth16Unorm:    return wgpu::TextureFormat::Depth16Unorm;
-        case TextureFormat::Depth24Plus:     return wgpu::TextureFormat::Depth24Plus;
-        case TextureFormat::Depth24PlusStencil8: return wgpu::TextureFormat::Depth24PlusStencil8;
-        case TextureFormat::Depth32Float:    return wgpu::TextureFormat::Depth32Float;
-        case TextureFormat::Depth32FloatStencil8: return wgpu::TextureFormat::Depth32FloatStencil8;
-        default: return wgpu::TextureFormat::Undefined;
+    case TextureFormat::RGBA8Unorm:
+        return wgpu::TextureFormat::RGBA8Unorm;
+    case TextureFormat::RGBA8UnormSrgb:
+        return wgpu::TextureFormat::RGBA8UnormSrgb;
+    case TextureFormat::BGRA8Unorm:
+        return wgpu::TextureFormat::BGRA8Unorm;
+    case TextureFormat::BGRA8UnormSrgb:
+        return wgpu::TextureFormat::BGRA8UnormSrgb;
+    case TextureFormat::Depth16Unorm:
+        return wgpu::TextureFormat::Depth16Unorm;
+    case TextureFormat::Depth24Plus:
+        return wgpu::TextureFormat::Depth24Plus;
+    case TextureFormat::Depth24PlusStencil8:
+        return wgpu::TextureFormat::Depth24PlusStencil8;
+    case TextureFormat::Depth32Float:
+        return wgpu::TextureFormat::Depth32Float;
+    case TextureFormat::Depth32FloatStencil8:
+        return wgpu::TextureFormat::Depth32FloatStencil8;
+    default:
+        return wgpu::TextureFormat::Undefined;
     }
 }
 
 wgpu::TextureUsage TextureImpl::ToWGPUUsage(TextureUsageFlags usage) noexcept {
     wgpu::TextureUsage out = wgpu::TextureUsage::None;
-    if (HasFlag(usage, TextureUsageFlags::Sampled))      out |= wgpu::TextureUsage::TextureBinding;
-    if (HasFlag(usage, TextureUsageFlags::Storage))      out |= wgpu::TextureUsage::StorageBinding;
-    if (HasFlag(usage, TextureUsageFlags::RenderTarget)) out |= wgpu::TextureUsage::RenderAttachment;
-    if (HasFlag(usage, TextureUsageFlags::CopySrc))      out |= wgpu::TextureUsage::CopySrc;
-    if (HasFlag(usage, TextureUsageFlags::CopyDst))      out |= wgpu::TextureUsage::CopyDst;
+    if (HasFlag(usage, TextureUsageFlags::Sampled)) out |= wgpu::TextureUsage::TextureBinding;
+    if (HasFlag(usage, TextureUsageFlags::Storage)) out |= wgpu::TextureUsage::StorageBinding;
+    if (HasFlag(usage, TextureUsageFlags::RenderTarget))
+        out |= wgpu::TextureUsage::RenderAttachment;
+    if (HasFlag(usage, TextureUsageFlags::CopySrc)) out |= wgpu::TextureUsage::CopySrc;
+    if (HasFlag(usage, TextureUsageFlags::CopyDst)) out |= wgpu::TextureUsage::CopyDst;
     return out;
 }
 
-bool TextureImpl::Init(ref<Device> device, const TextureDesc& desc) noexcept {
-    if (!device) return false;
-    if (desc.width == 0 || desc.height == 0) return false;
+result<void> TextureImpl::Initialize(ref<Device> device, const TextureDesc& desc) noexcept {
+    if (!device) return err(ErrorCode::INVALID_ARGUMENT, "Texture: device null");
+    if (desc.width == 0 || desc.height == 0)
+        return err(ErrorCode::INVALID_ARGUMENT, "Texture: width and height must be > 0");
 
     auto* dev = dynamic_cast<DeviceImpl*>(device.get());
     if (!dev) {
         log::Error("TextureImpl: device is not WebGPU device");
-        return false;
+        return err(ErrorCode::INVALID_ARGUMENT, "Texture: device is not WebGPU device");
     }
 
     mDevice = dev->DeviceHandle();
-    mQueue  = dev->QueueHandle();
-    if (!mDevice || !mQueue) return false;
+    mQueue = dev->QueueHandle();
+    if (!mDevice || !mQueue)
+        return err(
+            ErrorCode::GRAPHICS_RESOURCE_CREATION_FAILED, "Texture: failed to get device or queue");
 
-    mWidth  = desc.width;
+    mWidth = desc.width;
     mHeight = desc.height;
     mFormat = desc.format;
-    mUsage  = desc.usage;
+    mUsage = desc.usage;
 
     wgpu::TextureDescriptor td{};
     td.dimension = wgpu::TextureDimension::e2D;
-    td.size = { mWidth, mHeight, 1 };
+    td.size = {mWidth, mHeight, 1};
     td.format = ToWGPU(mFormat);
     td.mipLevelCount = desc.mipLevels;
     td.sampleCount = 1;
@@ -64,7 +78,9 @@ bool TextureImpl::Init(ref<Device> device, const TextureDesc& desc) noexcept {
     if (!desc.debugName.empty()) td.label = desc.debugName.c_str();
 
     mTexture = mDevice.CreateTexture(&td);
-    return mTexture != nullptr;
+    if (!mTexture)
+        return err(ErrorCode::GRAPHICS_RESOURCE_CREATION_FAILED, "Texture: CreateTexture failed");
+    return ok();
 }
 
 result<ref<TextureView>> TextureImpl::CreateView(const TextureViewDesc& desc) noexcept {
@@ -74,12 +90,14 @@ result<ref<TextureView>> TextureImpl::CreateView(const TextureViewDesc& desc) no
     if (!desc.debugName.empty()) vd.label = desc.debugName.c_str();
 
     auto v = mTexture.CreateView(&vd);
-    if (!v) return err(ErrorCode::GRAPHICS_RESOURCE_CREATION_FAILED, "TextureView: CreateView failed");
+    if (!v)
+        return err(ErrorCode::GRAPHICS_RESOURCE_CREATION_FAILED, "TextureView: CreateView failed");
 
     return ok(createRef<TextureViewImpl>(v));
 }
 
-result<ref<Texture>> TextureImpl::FromFile(ref<Device> device, const std::string& path, const TextureFromFileDesc& desc) noexcept {
+result<ref<Texture>> TextureImpl::FromFile(
+    ref<Device> device, const std::string& path, const TextureFromFileDesc& desc) noexcept {
     int w = 0, h = 0, comp = 0;
     stbi_uc* pixels = stbi_load(path.c_str(), &w, &h, &comp, 4);
     if (!pixels || w <= 0 || h <= 0) {
@@ -87,7 +105,7 @@ result<ref<Texture>> TextureImpl::FromFile(ref<Device> device, const std::string
         return err(ErrorCode::FILE_NOT_FOUND, "Texture::FromFile: failed to load image");
     }
 
-    const u32 width  = (u32)w;
+    const u32 width = (u32)w;
     const u32 height = (u32)h;
     const u32 bpp = 4;
     const u32 unalignedBpr = width * bpp;
@@ -101,9 +119,8 @@ result<ref<Texture>> TextureImpl::FromFile(ref<Device> device, const std::string
     } else {
         upload.resize((size_t)alignedBpr * height);
         for (u32 y = 0; y < height; ++y) {
-            std::memcpy(upload.data() + (size_t)alignedBpr * y,
-                        src + (size_t)unalignedBpr * y,
-                        unalignedBpr);
+            std::memcpy(upload.data() + (size_t)alignedBpr * y, src + (size_t)unalignedBpr * y,
+                unalignedBpr);
         }
     }
 
@@ -124,7 +141,7 @@ result<ref<Texture>> TextureImpl::FromFile(ref<Device> device, const std::string
     wgpu::TexelCopyTextureInfo dst{};
     dst.texture = impl->mTexture;
     dst.mipLevel = 0;
-    dst.origin = {0,0,0};
+    dst.origin = {0, 0, 0};
     dst.aspect = wgpu::TextureAspect::All;
 
     wgpu::TexelCopyBufferLayout layout{};
@@ -132,7 +149,7 @@ result<ref<Texture>> TextureImpl::FromFile(ref<Device> device, const std::string
     layout.bytesPerRow = alignedBpr;
     layout.rowsPerImage = height;
 
-    wgpu::Extent3D extent{ width, height, 1 };
+    wgpu::Extent3D extent{width, height, 1};
     impl->mQueue.WriteTexture(&dst, upload.data(), upload.size(), &layout, &extent);
 
     return tex;

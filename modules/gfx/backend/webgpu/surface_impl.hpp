@@ -10,7 +10,7 @@ public:
     SurfaceImpl() = default;
     ~SurfaceImpl() override = default;
 
-    bool Init(ref<Device> device, ref<Window> window, const SurfaceDesc& desc) noexcept;
+    result<void> Initialize(ref<Device> device, ref<Window> window, const SurfaceDesc& desc) noexcept;
 
     [[nodiscard]] void* GetNativeSurface() const noexcept override { return (void*)mSurface.Get(); }
     [[nodiscard]] const wgpu::Surface& SurfaceHandle() const noexcept { return mSurface; }

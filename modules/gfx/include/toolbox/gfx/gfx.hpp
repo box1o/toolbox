@@ -9,6 +9,7 @@
 #include <toolbox/gfx/api/swapchain.hpp>
 
 #include <toolbox/gfx/api/texture.hpp>
+#include <toolbox/gfx/api/texture_resource.hpp>
 #include <toolbox/gfx/api/buffer.hpp>
 #include <toolbox/gfx/api/sampler.hpp>
 

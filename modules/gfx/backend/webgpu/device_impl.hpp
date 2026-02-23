@@ -10,28 +10,27 @@ public:
     explicit DeviceImpl(const DeviceDesc& desc);
     ~DeviceImpl() override = default;
 
+    result<void> Initialize() noexcept;
+
     [[nodiscard]] const wgpu::Instance& InstanceHandle() const noexcept { return mInstance; }
     [[nodiscard]] const wgpu::Device& DeviceHandle() const noexcept { return mDevice; }
     [[nodiscard]] const wgpu::Queue& QueueHandle() const noexcept { return mQueue; }
+    [[nodiscard]] const AdapterInfo& GetAdapterInfo() const noexcept override { return mAdapterInfo; }
 
-    [[nodiscard]] const AdapterInfo& GetAdapterInfo() const noexcept override {
-        return mAdapterInfo;
-    }
     [[nodiscard]] const Limits& GetLimits() const noexcept override { return mLimits; }
 
     [[nodiscard]] DeviceNativeHandles GetNative() const noexcept override;
 
     void Tick() const noexcept override;
 
-public:
-    bool CreateInstance() noexcept;
-    bool RequestAdapter() noexcept;
-    bool RequestDevice() noexcept;
+private:
+    result<void> CreateInstance() noexcept;
+    result<void> RequestAdapter() noexcept;
+    result<void> RequestDevice() noexcept;
 
     void QueryAdapterInfo() noexcept;
     void QueryLimits() noexcept;
 
-private:
     static wgpu::PowerPreference ToWGPU(PowerPreference p) noexcept;
     static std::string ToString(wgpu::StringView sv);
 

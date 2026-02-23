@@ -6,7 +6,7 @@
 namespace ct::gfx {
 class Device;
 class Surface;
-}
+} // namespace ct::gfx
 
 namespace ct::gfx::webgpu {
 
@@ -15,7 +15,8 @@ public:
     SwapchainImpl() = default;
     ~SwapchainImpl() override = default;
 
-    bool Init(ref<Device> device, ref<Surface> surface, const SwapchainDesc& desc) noexcept;
+    result<void> Initialize(
+        ref<Device> device, ref<Surface> surface, const SwapchainDesc& desc) noexcept;
 
     [[nodiscard]] TextureFormat GetColorFormat() const noexcept override { return mColorFormat; }
     [[nodiscard]] TextureFormat GetDepthFormat() const noexcept override { return mDepthFormat; }
@@ -33,13 +34,13 @@ public:
     result<void> Present() noexcept override;
 
 private:
-    bool Configure() noexcept;
-    bool CreateOrResizeDepth() noexcept;
+    result<void> Configure() noexcept;
+    result<void> CreateOrResizeDepth() noexcept;
 
 private:
     ref<Device> mDeviceRef{};
     wgpu::Device mDevice;
-    wgpu::Queue  mQueue;
+    wgpu::Queue mQueue;
     wgpu::Surface mSurface;
 
     SwapchainDesc mDesc{};

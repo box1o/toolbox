@@ -59,21 +59,27 @@
 
 namespace ct::gfx::webgpu {
 
-bool SurfaceImpl::Init(ref<Device> device, ref<Window> window, const SurfaceDesc&) noexcept {
-    if (!device || !window) return false;
+result<void> SurfaceImpl::Initialize(
+    ref<Device> device, ref<Window> window, const SurfaceDesc&) noexcept {
+    if (!device || !window) {
+        return err(
+            ErrorCode::GRAPHICS_RESOURCE_CREATION_FAILED, "Surface: device or window is null");
+    }
 
     auto* dev = dynamic_cast<DeviceImpl*>(device.get());
     if (!dev) {
         log::Error("SurfaceImpl: device is not WebGPU device");
-        return false;
+        return err(
+            ErrorCode::GRAPHICS_RESOURCE_CREATION_FAILED, "Surface: device is not WebGPU device");
     }
 
     mSurface = CreateNativeSurface(dev->InstanceHandle(), window);
     if (!mSurface) {
         log::Error("SurfaceImpl: failed to create native surface");
-        return false;
+        return err(ErrorCode::GRAPHICS_RESOURCE_CREATION_FAILED,
+            "Surface: failed to create native surface");
     }
-    return true;
+    return ok();
 }
 
 wgpu::Surface CreateNativeSurface(const wgpu::Instance& instance, ref<Window> window) {

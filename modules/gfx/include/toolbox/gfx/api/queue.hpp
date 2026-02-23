@@ -18,7 +18,8 @@ public:
 
     virtual result<void> Submit(std::initializer_list<ref<CommandBuffer>> cmdBuffers) noexcept = 0;
 
-    [[nodiscard]] static result<ref<Queue>> Create(ref<Device> device, const QueueDesc& desc = {}) noexcept;
+    [[nodiscard]] static result<ref<Queue>> Create(
+        ref<Device> device, const QueueDesc& desc = {}) noexcept;
 
 protected:
     Queue() = default;

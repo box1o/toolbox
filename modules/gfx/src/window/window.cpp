@@ -1,5 +1,5 @@
-#include <toolbox/gfx/window/window.hpp>
 #include <toolbox/base/logger/logger.hpp>
+#include <toolbox/gfx/window/window.hpp>
 
 #include <GLFW/glfw3.h>
 
@@ -29,13 +29,20 @@ static void GlfwErrorCallback(int error, const char* desc) {
 
 static GLFWcursor* MakeCursor(CursorType type) noexcept {
     switch (type) {
-        case CursorType::Arrow:     return glfwCreateStandardCursor(GLFW_ARROW_CURSOR);
-        case CursorType::IBeam:     return glfwCreateStandardCursor(GLFW_IBEAM_CURSOR);
-        case CursorType::Crosshair: return glfwCreateStandardCursor(GLFW_CROSSHAIR_CURSOR);
-        case CursorType::Hand:      return glfwCreateStandardCursor(GLFW_HAND_CURSOR);
-        case CursorType::HResize:   return glfwCreateStandardCursor(GLFW_HRESIZE_CURSOR);
-        case CursorType::VResize:   return glfwCreateStandardCursor(GLFW_VRESIZE_CURSOR);
-        default:                    return nullptr;
+    case CursorType::Arrow:
+        return glfwCreateStandardCursor(GLFW_ARROW_CURSOR);
+    case CursorType::IBeam:
+        return glfwCreateStandardCursor(GLFW_IBEAM_CURSOR);
+    case CursorType::Crosshair:
+        return glfwCreateStandardCursor(GLFW_CROSSHAIR_CURSOR);
+    case CursorType::Hand:
+        return glfwCreateStandardCursor(GLFW_HAND_CURSOR);
+    case CursorType::HResize:
+        return glfwCreateStandardCursor(GLFW_HRESIZE_CURSOR);
+    case CursorType::VResize:
+        return glfwCreateStandardCursor(GLFW_VRESIZE_CURSOR);
+    default:
+        return nullptr;
     }
 }
 
@@ -45,31 +52,34 @@ result<ref<Window>> Window::Create(const WindowInfo& info) noexcept {
     ref<Window> win(new Window());
     win->mImpl = scope<Impl>(new Impl());
 
-    if (!win->InitGLFW()) {
-        return err(ErrorCode::GRAPHICS_INIT_FAILED, "Window: GLFW init failed");
+    if (auto res = win->InitGLFW(); !res) {
+        return err(res.error());
     }
-    if (!win->CreateWindowGLFW(info)) {
-        return err(ErrorCode::GRAPHICS_INIT_FAILED, "Window: create failed");
+    if (auto res = win->CreateWindowGLFW(info); !res) {
+        return err(res.error());
     }
-    return ok(win);
+    return win;
 }
 
 Window::~Window() { Close(); }
 
-bool Window::InitGLFW() noexcept {
-    if (sGlfwInit) return true;
+result<void> Window::InitGLFW() noexcept {
+    if (sGlfwInit) {
+        log::Critical("GLFW is already initialized");
+        return ok();
+    }
 
     glfwSetErrorCallback(GlfwErrorCallback);
     if (!glfwInit()) {
         log::Critical("GLFW init failed");
-        return false;
+        return err(ErrorCode::GRAPHICS_INIT_FAILED, "GLFW initialization failed");
     }
 
     sGlfwInit = true;
-    return true;
+    return ok();
 }
 
-bool Window::CreateWindowGLFW(const WindowInfo& info) noexcept {
+result<void> Window::CreateWindowGLFW(const WindowInfo& info) noexcept {
     glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
     glfwWindowHint(GLFW_FLOATING, info.floating ? GLFW_TRUE : GLFW_FALSE);
     glfwWindowHint(GLFW_RESIZABLE, info.resizable ? GLFW_TRUE : GLFW_FALSE);
@@ -77,17 +87,13 @@ bool Window::CreateWindowGLFW(const WindowInfo& info) noexcept {
 
     GLFWmonitor* monitor = info.fullscreen ? glfwGetPrimaryMonitor() : nullptr;
 
-    mImpl->window = glfwCreateWindow(
-        static_cast<int>(info.width),
-        static_cast<int>(info.height),
-        info.title.c_str(),
-        monitor,
-        nullptr);
+    mImpl->window = glfwCreateWindow(static_cast<int>(info.width), static_cast<int>(info.height),
+        info.title.c_str(), monitor, nullptr);
 
     if (!mImpl->window) {
         log::Critical("Failed to create GLFW window");
         if (sWindowCount == 0) ShutdownGLFW();
-        return false;
+        return err(ErrorCode::GRAPHICS_INIT_FAILED, "GLFW window creation failed");
     }
 
     ++sWindowCount;
@@ -108,8 +114,7 @@ bool Window::CreateWindowGLFW(const WindowInfo& info) noexcept {
 #ifdef WEBGPU_BACKEND_EMSCRIPTEN
     SetupEmscriptenResize();
 #endif
-
-    return true;
+    return ok();
 }
 
 void Window::ShutdownGLFW() noexcept {
@@ -147,9 +152,15 @@ void Window::SetCursorMode(CursorMode mode) noexcept {
     int value = GLFW_CURSOR_NORMAL;
 
     switch (mode) {
-        case CursorMode::Normal:   value = GLFW_CURSOR_NORMAL; break;
-        case CursorMode::Hidden:   value = GLFW_CURSOR_HIDDEN; break;
-        case CursorMode::Disabled: value = GLFW_CURSOR_DISABLED; break;
+    case CursorMode::Normal:
+        value = GLFW_CURSOR_NORMAL;
+        break;
+    case CursorMode::Hidden:
+        value = GLFW_CURSOR_HIDDEN;
+        break;
+    case CursorMode::Disabled:
+        value = GLFW_CURSOR_DISABLED;
+        break;
     }
 
     glfwSetInputMode(mImpl->window, GLFW_CURSOR, value);
@@ -220,7 +231,8 @@ void Window::SetupEmscriptenResize() noexcept {
 
         if (pixelW == 0 || pixelH == 0) return EM_FALSE;
 
-        emscripten_set_canvas_element_size("canvas", static_cast<int>(pixelW), static_cast<int>(pixelH));
+        emscripten_set_canvas_element_size(
+            "canvas", static_cast<int>(pixelW), static_cast<int>(pixelH));
         self->HandleResize(pixelW, pixelH);
         return EM_TRUE;
     };
@@ -235,7 +247,8 @@ void Window::SetupEmscriptenResize() noexcept {
     const u32 pixelH = static_cast<u32>(cssH * dpr);
 
     if (pixelW > 0 && pixelH > 0) {
-        emscripten_set_canvas_element_size("canvas", static_cast<int>(pixelW), static_cast<int>(pixelH));
+        emscripten_set_canvas_element_size(
+            "canvas", static_cast<int>(pixelW), static_cast<int>(pixelH));
         HandleResize(pixelW, pixelH);
     }
 }

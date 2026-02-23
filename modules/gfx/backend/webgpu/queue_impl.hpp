@@ -14,7 +14,7 @@ public:
     QueueImpl() = default;
     ~QueueImpl() override = default;
 
-    bool Init(ref<Device> device, const QueueDesc& desc) noexcept;
+    result<void> Initialize(ref<Device> device, const QueueDesc& desc) noexcept;
 
     result<void> Submit(std::initializer_list<ref<CommandBuffer>> cmdBuffers) noexcept override;
 

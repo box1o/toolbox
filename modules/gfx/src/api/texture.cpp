@@ -10,8 +10,8 @@ namespace ct::gfx {
 result<ref<Texture>> Texture::Create(ref<Device> device, const TextureDesc& desc) noexcept {
 #if defined(USE_WEBGPU_BACKEND)
     auto impl = createRef<webgpu::TextureImpl>();
-    if (!impl->Init(device, desc)) {
-        return err(ErrorCode::GRAPHICS_RESOURCE_CREATION_FAILED, "Texture: init failed");
+    if (auto res = impl->Initialize(device, desc); !res) {
+        return err(res.error());
     }
     return impl;
 #else

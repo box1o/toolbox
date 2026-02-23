@@ -14,7 +14,7 @@ public:
     BufferImpl() = default;
     ~BufferImpl() override = default;
 
-    bool Init(ref<Device> device, const BufferDesc& desc) noexcept;
+    result<void> Initialize(ref<Device> device, const BufferDesc& desc) noexcept;
 
     [[nodiscard]] u64 GetSize() const noexcept override { return mSize; }
     [[nodiscard]] void* GetNativeBuffer() const noexcept override { return (void*)mBuffer.Get(); }

@@ -1,6 +1,5 @@
 #include <toolbox/gfx/api/buffer.hpp>
 #include <toolbox/base/logger/logger.hpp>
-#include <cstdlib>
 
 #if defined(USE_WEBGPU_BACKEND)
 #include "../../backend/webgpu/buffer_impl.hpp"
@@ -11,8 +10,8 @@ namespace ct::gfx {
 result<ref<Buffer>> Buffer::Create(ref<Device> device, const BufferDesc& desc) noexcept {
 #if defined(USE_WEBGPU_BACKEND)
     auto impl = createRef<webgpu::BufferImpl>();
-    if (!impl->Init(device, desc)) {
-        return err(ErrorCode::GRAPHICS_RESOURCE_CREATION_FAILED, "Buffer: init failed");
+    if (auto res = impl->Initialize(device, desc) ; !res) {
+        return err(res.error());
     }
     return impl;
 #else

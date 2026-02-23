@@ -28,7 +28,7 @@ public:
     TextureImpl() = default;
     ~TextureImpl() override = default;
 
-    bool Init(ref<Device> device, const TextureDesc& desc) noexcept;
+    result<void> Initialize(ref<Device> device, const TextureDesc& desc) noexcept;
 
     [[nodiscard]] u32 GetWidth() const noexcept override { return mWidth; }
     [[nodiscard]] u32 GetHeight() const noexcept override { return mHeight; }
@@ -37,7 +37,6 @@ public:
     [[nodiscard]] void* GetNativeTexture() const noexcept override { return (void*)mTexture.Get(); }
 
     [[nodiscard]] result<ref<TextureView>> CreateView(const TextureViewDesc& desc) noexcept override;
-
     static result<ref<Texture>> FromFile(ref<Device> device, const std::string& path, const TextureFromFileDesc& desc) noexcept;
 
 private:

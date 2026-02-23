@@ -1,23 +1,10 @@
 #include "GLFW/glfw3.h"
-#include "toolbox/base/errors/result.hpp"
-
 #include <toolbox/base/base.hpp>
 #include <toolbox/gfx/gfx.hpp>
-
-#include <toolbox/gfx/api/bindings.hpp>
-#include <toolbox/gfx/api/buffer.hpp>
-#include <toolbox/gfx/api/command_encoder.hpp>
-#include <toolbox/gfx/api/pipeline.hpp>
-#include <toolbox/gfx/api/render_pass.hpp>
-#include <toolbox/gfx/api/sampler.hpp>
-#include <toolbox/gfx/api/shader.hpp>
-#include <toolbox/gfx/api/texture_resource.hpp>
-#include <toolbox/gfx/api/vertex_layout.hpp>
-
 #include <toolbox/math/math.hpp>
 
 #include <array>
-#include <cstddef> // offsetof
+#include <cstddef>
 
 using namespace ct;
 
@@ -27,8 +14,9 @@ struct Vertex {
     vec2f uv;
 };
 
-struct SceneUniform {
+struct alignas(16) SceneUniform {
     mat4f mvp;
+    f32 time;
 };
 
 int main(int /*argc*/, char* /*argv*/[]) {
@@ -93,7 +81,6 @@ int main(int /*argc*/, char* /*argv*/[]) {
     auto vb = TRY(gfx::Buffer::Create(device, {
         .size      = (u64)sizeof(cubeVerts),
         .usage     = gfx::BufferUsageFlags::Vertex | gfx::BufferUsageFlags::CopyDst,
-        .debugName = "CubeVB",
     }));
     TRY_VOID(vb->Update(cubeVerts));
 
@@ -102,14 +89,13 @@ int main(int /*argc*/, char* /*argv*/[]) {
 
     // Load texture + view + sampler
     auto tex = TRY(gfx::Texture::FromFile(device,
-        "/home/toor/dev/toolbox/studio/resources/textures/beluga.png",
+        "resources/textures/beluga.png",
         {
             .usage = gfx::TextureUsageFlags::Sampled | gfx::TextureUsageFlags::CopyDst,
             .srgb = true,
-            .debugName = "CatTexture",
         }));
 
-    auto texView = TRY(tex->CreateView({.debugName = "CatTextureView"}));
+    auto texView = TRY(tex->CreateView({}));
 
     auto sampler = TRY(gfx::Sampler::Create(device, {
         .minFilter = gfx::FilterMode::Linear,
@@ -117,7 +103,6 @@ int main(int /*argc*/, char* /*argv*/[]) {
         .addressU  = gfx::AddressMode::Repeat,
         .addressV  = gfx::AddressMode::Repeat,
         .addressW  = gfx::AddressMode::Repeat,
-        .debugName = "CatSampler",
     }));
 
     // Bind group layout: 0=uniform, 1=texture, 2=sampler
@@ -127,23 +112,28 @@ int main(int /*argc*/, char* /*argv*/[]) {
             .Add(gfx::BindingLayoutDesc{
                 .binding        = 0,
                 .type           = gfx::BindingType::UniformBuffer,
-                .visibility     = gfx::ShaderStageFlags::Vertex,
-                .minBindingSize = sizeof(SceneUniform),
-                .debugName      = "SceneUBO",
+                .visibility     = gfx::ShaderStageFlags::Vertex |
+                gfx::ShaderStageFlags::Fragment, .minBindingSize = sizeof(SceneUniform),
             })
             .Add(gfx::BindingLayoutDesc{
                 .binding    = 1,
                 .type       = gfx::BindingType::Texture2D,
                 .visibility = gfx::ShaderStageFlags::Fragment,
-                .debugName  = "Tex2D",
             })
             .Add(gfx::BindingLayoutDesc{
                 .binding    = 2,
                 .type       = gfx::BindingType::Sampler,
                 .visibility = gfx::ShaderStageFlags::Fragment,
-                .debugName  = "Sampler",
             })
     ));
+
+    // // test builder pattern 
+    // auto sceneLayout = TRY(gfx::BindGroupLayout::Create(device)
+    //         // .Add(0 , type , visibility, minSize)
+    //         .AddBuffer(0, gfx::ShaderStageFlags::Vertex | gfx::ShaderStageFlags::Fragment, sizeof(SceneUniform))
+    //         .AddTexture2D(1, gfx::ShaderStageFlags::Fragment)
+    //         .AddSampler(2, gfx::ShaderStageFlags::Fragment).Build()
+    // );
 
     auto pipelineLayout = TRY(gfx::PipelineLayout::Create(
         device, gfx::PipelineLayoutDesc{}.Add(sceneLayout)
@@ -151,24 +141,20 @@ int main(int /*argc*/, char* /*argv*/[]) {
 
     auto sceneBindGroup = TRY(gfx::BindGroup::Create(
         device,
-        gfx::BindGroupDesc{.layout = sceneLayout, .debugName = "SceneBindGroup"}
+        gfx::BindGroupDesc{.layout = sceneLayout, }
             .BindUniformBuffer(0, sceneUniform, 0, sizeof(SceneUniform))
             .BindTexture2D(1, texView)
             .BindSampler(2, sampler)
     ));
 
-    // Shaders (use the WGSL below)
-    auto vs = TRY(gfx::ShaderModule::FromFile(
-        device,
-        "/home/toor/dev/toolbox/studio/resources/shaders/vs_tex.wgsl",
+    auto vs = TRY(gfx::ShaderModule::FromFile( device,
+        "resources/shaders/vs.wgsl",
         {.stage = gfx::ShaderStage::Vertex}));
 
-    auto fs = TRY(gfx::ShaderModule::FromFile(
-        device,
-        "/home/toor/dev/toolbox/studio/resources/shaders/fs_tex.wgsl",
+    auto fs = TRY(gfx::ShaderModule::FromFile( device,
+        "resources/shaders/fs.wgsl",
         {.stage = gfx::ShaderStage::Fragment}));
 
-    // Vertex layout: pos(0), normal(1), uv(2)
     gfx::VertexLayoutDesc vld{};
     vld.Binding(0, (u32)sizeof(Vertex), gfx::VertexInputRate::PerVertex)
        .Attribute(0, 0, gfx::VertexFormat::Float3, (u32)offsetof(Vertex, position), "position")
@@ -177,7 +163,8 @@ int main(int /*argc*/, char* /*argv*/[]) {
 
     const bool useDepth = swapchain->HasDepth();
 
-    auto pipeline = TRY(gfx::RenderPipeline::Create(device, {
+
+    auto pDesc =  gfx::RenderPipelineDesc {
         .vertexShader   = vs,
         .fragmentShader = fs,
         .vertexLayout   = gfx::VertexLayout{vld},
@@ -188,18 +175,18 @@ int main(int /*argc*/, char* /*argv*/[]) {
                                    : gfx::TextureFormat::Depth24PlusStencil8,
         .raster         = {
             .topology  = gfx::PrimitiveTopology::TriangleList,
-            .cull      = gfx::CullMode::Back,   // safe now
+            .cull      = gfx::CullMode::Back,
             .frontFace = gfx::FrontFace::CCW,
         },
-        .debugName      = "TexturedCubePipeline",
-    }));
+    };
+    auto pipeline = TRY(gfx::RenderPipeline::Create(device, pDesc));
 
     while (!window->ShouldClose()) {
         window->PollEvents();
         device->Tick();
 
         auto frame   = TRY(swapchain->AcquireNextFrame());
-        auto encoder = TRY(gfx::CommandEncoder::Create(device, {.debugName = "FrameEncoder"}));
+        auto encoder = TRY(gfx::CommandEncoder::Create(device, {}));
 
         const float aspect =
             (frame.height == 0) ? 1.0f : (float)frame.width / (float)frame.height;
@@ -213,6 +200,7 @@ int main(int /*argc*/, char* /*argv*/[]) {
 
         SceneUniform u{};
         u.mvp = proj * view * model;
+        u.time = t;
         TRY_VOID(sceneUniform->Update(u));
 
         gfx::RenderPassDesc rp{};
@@ -242,3 +230,46 @@ int main(int /*argc*/, char* /*argv*/[]) {
 
     return 0;
 }
+
+
+
+// #include <print>
+// #include <string>
+// class Pipeline {
+// public:
+//     class Builder {
+//     public:
+//         Builder& AddTest(const std::string& out) {
+//             mOut += out;
+//             return *this;
+//         }
+//         Builder& AddTest2(const std::string& out) {
+//             mOut += out;
+//             return *this;
+//         }
+//         Builder& AddTest3(const std::string& out) {
+//             mOut += out;
+//             return *this;
+//         }
+//
+//         Pipeline Build() { return Pipeline{mOut}; }
+//
+//     private:
+//         std::string mOut;
+//     };
+//
+//     [[nodiscard]] static Builder Create() noexcept { return Builder{}; }
+//
+// private:
+//     Pipeline(const std::string& out) { std::print("Pipeline created with output: {}\n", out); };
+// };
+//
+// int main(int argc, char* argv[]) {
+//
+//     auto pipeline = Pipeline::Create()
+//                         .AddTest("Hello, ")
+//                         .AddTest2("world! ")
+//                         .AddTest3("This is a pipeline builder example.")
+//                         .Build();
+//     return 0;
+// }

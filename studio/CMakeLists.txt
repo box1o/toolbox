@@ -60,12 +60,16 @@ if(EMSCRIPTEN)
 
     set(CMAKE_EXECUTABLE_SUFFIX ".html")
 
+    # Where resources should appear inside the Emscripten virtual FS
+    set(STUDIO_WEB_RES_MOUNT "/resources")
+
     target_compile_definitions(${STUDIO_NAME} PRIVATE
         STUDIO_WEB
         STUDIO_WEBGPU_TEST
         WEBGPU_BACKEND_EMSCRIPTEN
     )
 
+    # Your existing port logic...
     if(EMDAWNWEBGPU_PORT STREQUAL "")
         set(_WGPU_PORT "emdawnwebgpu")
         message(WARNING "using the emscripten emdawnwebgpu")
@@ -77,6 +81,17 @@ if(EMSCRIPTEN)
     target_compile_options(${STUDIO_NAME} PRIVATE
         "--use-port=${_WGPU_PORT}"
     )
+
+    # IMPORTANT: preload resources into the .data file and mount at /resources
+    if(EXISTS "${STUDIO_RES_DIR}")
+        target_link_options(${STUDIO_NAME} PRIVATE
+            "--preload-file" "${STUDIO_RES_DIR}@${STUDIO_WEB_RES_MOUNT}"
+        )
+        # Optional: tell your code where to look
+        target_compile_definitions(${STUDIO_NAME} PRIVATE
+            STUDIO_RES_ROOT="${STUDIO_WEB_RES_MOUNT}"
+        )
+    endif()
 
     target_link_options(${STUDIO_NAME} PRIVATE
         "--use-port=${_WGPU_PORT}"

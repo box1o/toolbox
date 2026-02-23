@@ -1,16 +1,17 @@
 #pragma once
 #include <functional>
 #include <string>
-#include <unordered_map>
 
 #include <toolbox/base/base.hpp>
+
+namespace ct::events {
+struct EventBase;
+}
 
 namespace ct::gfx {
 
 enum class CursorMode : u8 { Normal, Hidden, Disabled };
 enum class CursorType : u8 { Arrow, IBeam, Crosshair, Hand, HResize, VResize };
-
-using CallbackId = u32;
 
 struct WindowInfo {
     std::string title{"toolbox"};
@@ -24,7 +25,7 @@ struct WindowInfo {
 
 class Window {
 public:
-    using ResizeCallback = std::function<void(u32 width, u32 height)>;
+    using EventCallback = std::function<void(ct::events::EventBase&)>;
 
     ~Window();
 
@@ -50,10 +51,13 @@ public:
 
     [[nodiscard]] bool ShouldClose() const noexcept;
     void PollEvents() const noexcept;
+
+    // Destroys the native window and shuts down GLFW when last window closes.
     void Close() noexcept;
 
-    CallbackId AddResizeCallback(ResizeCallback callback);
-    void RemoveResizeCallback(CallbackId id);
+    // Events integration: user provides a single sink (Application, LayerStack, etc.)
+    void SetEventCallback(EventCallback callback) noexcept;
+    [[nodiscard]] bool HasEventCallback() const noexcept;
 
     [[nodiscard]] static result<ref<Window>> Create(const WindowInfo& info = {}) noexcept;
 
@@ -65,7 +69,9 @@ private:
     static void ShutdownGLFW() noexcept;
 
     void SetupCallbacks() noexcept;
+
     void HandleResize(u32 width, u32 height) noexcept;
+    void DispatchEvent(ct::events::EventBase& e) noexcept;
 
 #ifdef WEBGPU_BACKEND_EMSCRIPTEN
     void SetupEmscriptenResize() noexcept;
@@ -74,8 +80,7 @@ private:
     struct Impl;
     scope<Impl> mImpl;
 
-    std::unordered_map<CallbackId, ResizeCallback> mResizeCallbacks;
-    CallbackId mNextCallbackId{1};
+    EventCallback mEventCallback{};
 
     std::string mTitle{"toolbox"};
     u32 mWidth{0};
@@ -88,6 +93,11 @@ private:
 
     f32 mContentScaleX{1.0f};
     f32 mContentScaleY{1.0f};
+
+    // Mouse state for delta computation
+    bool mHasLastMousePos{false};
+    f32 mLastMouseX{0.0f};
+    f32 mLastMouseY{0.0f};
 
     static inline u32 sWindowCount{0};
     static inline bool sGlfwInit{false};

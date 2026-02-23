@@ -66,9 +66,7 @@ std::string DeviceImpl::ToString(wgpu::StringView sv) {
 void DeviceImpl::OnDeviceLost(
     const wgpu::Device&, wgpu::DeviceLostReason, wgpu::StringView message, DeviceImpl* self) {
     if (!self) return;
-    if (self->mDesc.debug.deviceLostLogs) {
-        log::Warn("[wgpu] Device lost: {}", ToString(message));
-    }
+    log::Warn("[wgpu] Device lost: {}", ToString(message));
 }
 
 void DeviceImpl::OnUncapturedError(
@@ -76,20 +74,16 @@ void DeviceImpl::OnUncapturedError(
     if (!self) return;
 
     const auto text = ToString(message);
-    if (self->mDesc.debug.verboseErrors) {
-        log::Error("[wgpu] Uncaptured error (type {}): {}", static_cast<int>(type), text);
-    } else {
-        log::Error("[wgpu] Uncaptured error: {}", text);
-    }
-
-    // Fail fast on GPU validation/runtime errors to avoid submitting invalid work.
+    log::Error("[wgpu] Uncaptured error (type {}): {}", static_cast<int>(type), text);
     std::abort();
 }
 
 result<void> DeviceImpl::CreateInstance() noexcept {
 #if defined(WEBGPU_BACKEND_EMSCRIPTEN)
     mInstance = wgpu::CreateInstance(nullptr);
-    return mInstance != nullptr;
+    if (!mInstance) {
+        return err(ErrorCode::GRAPHICS_INIT_FAILED, "Device: failed to create instance");
+    }
 #else
     wgpu::InstanceDescriptor id{};
     static constexpr auto kTimedWaitAny = wgpu::InstanceFeatureName::TimedWaitAny;

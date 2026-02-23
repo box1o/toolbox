@@ -1,6 +1,9 @@
 #include <toolbox/base/logger/logger.hpp>
 #include <toolbox/gfx/window/window.hpp>
 
+#include <toolbox/gfx/events/input/events.hpp>
+#include <toolbox/gfx/events/window/events.hpp>
+
 #include <GLFW/glfw3.h>
 
 #ifdef WEBGPU_BACKEND_EMSCRIPTEN
@@ -29,21 +32,29 @@ static void GlfwErrorCallback(int error, const char* desc) {
 
 static GLFWcursor* MakeCursor(CursorType type) noexcept {
     switch (type) {
-    case CursorType::Arrow:
-        return glfwCreateStandardCursor(GLFW_ARROW_CURSOR);
-    case CursorType::IBeam:
-        return glfwCreateStandardCursor(GLFW_IBEAM_CURSOR);
-    case CursorType::Crosshair:
-        return glfwCreateStandardCursor(GLFW_CROSSHAIR_CURSOR);
-    case CursorType::Hand:
-        return glfwCreateStandardCursor(GLFW_HAND_CURSOR);
-    case CursorType::HResize:
-        return glfwCreateStandardCursor(GLFW_HRESIZE_CURSOR);
-    case CursorType::VResize:
-        return glfwCreateStandardCursor(GLFW_VRESIZE_CURSOR);
-    default:
-        return nullptr;
+    case CursorType::Arrow:     return glfwCreateStandardCursor(GLFW_ARROW_CURSOR);
+    case CursorType::IBeam:     return glfwCreateStandardCursor(GLFW_IBEAM_CURSOR);
+    case CursorType::Crosshair: return glfwCreateStandardCursor(GLFW_CROSSHAIR_CURSOR);
+    case CursorType::Hand:      return glfwCreateStandardCursor(GLFW_HAND_CURSOR);
+    case CursorType::HResize:   return glfwCreateStandardCursor(GLFW_HRESIZE_CURSOR);
+    case CursorType::VResize:   return glfwCreateStandardCursor(GLFW_VRESIZE_CURSOR);
+    default:                    return nullptr;
     }
+}
+
+static Window* GetSelf(GLFWwindow* w) noexcept {
+    return static_cast<Window*>(glfwGetWindowUserPointer(w));
+}
+
+// GLFW mouse buttons are 0..7 and match your MouseButton values.
+static ct::events::MouseButton ToMouseButton(int glfwButton) noexcept {
+    const int clamped = (glfwButton < 0) ? 0 : (glfwButton > 7 ? 7 : glfwButton);
+    return static_cast<ct::events::MouseButton>(static_cast<u8>(clamped));
+}
+
+// GLFW key codes are ints; your KeyCode enum contains many matching values.
+static ct::events::KeyCode ToKeyCode(int glfwKey) noexcept {
+    return static_cast<ct::events::KeyCode>(static_cast<u16>(glfwKey));
 }
 
 } // namespace
@@ -52,12 +63,9 @@ result<ref<Window>> Window::Create(const WindowInfo& info) noexcept {
     ref<Window> win(new Window());
     win->mImpl = scope<Impl>(new Impl());
 
-    if (auto res = win->InitGLFW(); !res) {
-        return err(res.error());
-    }
-    if (auto res = win->CreateWindowGLFW(info); !res) {
-        return err(res.error());
-    }
+    if (auto res = win->InitGLFW(); !res) return err(res.error());
+    if (auto res = win->CreateWindowGLFW(info); !res) return err(res.error());
+
     return win;
 }
 
@@ -81,14 +89,18 @@ result<void> Window::InitGLFW() noexcept {
 
 result<void> Window::CreateWindowGLFW(const WindowInfo& info) noexcept {
     glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
-    glfwWindowHint(GLFW_FLOATING, info.floating ? GLFW_TRUE : GLFW_FALSE);
+    glfwWindowHint(GLFW_FLOATING,  info.floating  ? GLFW_TRUE : GLFW_FALSE);
     glfwWindowHint(GLFW_RESIZABLE, info.resizable ? GLFW_TRUE : GLFW_FALSE);
     glfwWindowHint(GLFW_DECORATED, info.decorated ? GLFW_TRUE : GLFW_FALSE);
 
     GLFWmonitor* monitor = info.fullscreen ? glfwGetPrimaryMonitor() : nullptr;
 
-    mImpl->window = glfwCreateWindow(static_cast<int>(info.width), static_cast<int>(info.height),
-        info.title.c_str(), monitor, nullptr);
+    mImpl->window = glfwCreateWindow(
+        static_cast<int>(info.width),
+        static_cast<int>(info.height),
+        info.title.c_str(),
+        monitor,
+        nullptr);
 
     if (!mImpl->window) {
         log::Critical("Failed to create GLFW window");
@@ -98,9 +110,9 @@ result<void> Window::CreateWindowGLFW(const WindowInfo& info) noexcept {
 
     ++sWindowCount;
 
-    mTitle = info.title;
-    mWidth = info.width;
-    mHeight = info.height;
+    mTitle      = info.title;
+    mWidth      = info.width;
+    mHeight     = info.height;
     mFullscreen = info.fullscreen;
     mAspectRatio = (mHeight > 0) ? static_cast<f32>(mWidth) / static_cast<f32>(mHeight) : 1.0f;
 
@@ -114,6 +126,7 @@ result<void> Window::CreateWindowGLFW(const WindowInfo& info) noexcept {
 #ifdef WEBGPU_BACKEND_EMSCRIPTEN
     SetupEmscriptenResize();
 #endif
+
     return ok();
 }
 
@@ -132,17 +145,33 @@ bool Window::ShouldClose() const noexcept {
     return glfwWindowShouldClose(mImpl->window) != 0;
 }
 
-void Window::PollEvents() const noexcept { glfwPollEvents(); }
+void Window::PollEvents() const noexcept {
+    // On desktop and web builds, GLFW routes platform/browser events into these callbacks.
+    glfwPollEvents();
+}
 
 void Window::Close() noexcept {
     if (!mImpl || !mImpl->window) return;
 
+    // Do NOT emit WindowCloseEvent here: GLFW close callback emits it for user-close requests.
     glfwSetWindowUserPointer(mImpl->window, nullptr);
     glfwDestroyWindow(mImpl->window);
     mImpl->window = nullptr;
 
     if (sWindowCount > 0) --sWindowCount;
     if (sWindowCount == 0) ShutdownGLFW();
+}
+
+void Window::SetEventCallback(EventCallback callback) noexcept {
+    mEventCallback = std::move(callback);
+}
+
+bool Window::HasEventCallback() const noexcept {
+    return static_cast<bool>(mEventCallback);
+}
+
+void Window::DispatchEvent(ct::events::EventBase& e) noexcept {
+    if (mEventCallback) mEventCallback(e);
 }
 
 void Window::SetCursorMode(CursorMode mode) noexcept {
@@ -152,15 +181,9 @@ void Window::SetCursorMode(CursorMode mode) noexcept {
     int value = GLFW_CURSOR_NORMAL;
 
     switch (mode) {
-    case CursorMode::Normal:
-        value = GLFW_CURSOR_NORMAL;
-        break;
-    case CursorMode::Hidden:
-        value = GLFW_CURSOR_HIDDEN;
-        break;
-    case CursorMode::Disabled:
-        value = GLFW_CURSOR_DISABLED;
-        break;
+    case CursorMode::Normal:   value = GLFW_CURSOR_NORMAL; break;
+    case CursorMode::Hidden:   value = GLFW_CURSOR_HIDDEN; break;
+    case CursorMode::Disabled: value = GLFW_CURSOR_DISABLED; break;
     }
 
     glfwSetInputMode(mImpl->window, GLFW_CURSOR, value);
@@ -183,36 +206,187 @@ void Window::HandleResize(u32 width, u32 height) noexcept {
     if (width == 0 || height == 0) return;
     if (width == mWidth && height == mHeight) return;
 
-    mWidth = width;
+    mWidth  = width;
     mHeight = height;
     mAspectRatio = static_cast<f32>(mWidth) / static_cast<f32>(mHeight);
 
 #ifdef WEBGPU_BACKEND_EMSCRIPTEN
+    // Keep GLFW window size in sync with canvas pixel size on web builds.
     if (mImpl && mImpl->window) {
         glfwSetWindowSize(mImpl->window, static_cast<int>(width), static_cast<int>(height));
     }
 #endif
 
-    for (auto& [id, cb] : mResizeCallbacks) {
-        (void)id;
-        if (cb) cb(mWidth, mHeight);
-    }
+    ct::events::WindowResizeEvent e{mWidth, mHeight};
+    DispatchEvent(e);
 }
 
 void Window::SetupCallbacks() noexcept {
     glfwSetWindowUserPointer(mImpl->window, this);
 
+    // --------------------------
+    // Window events
+    // --------------------------
+
+    glfwSetWindowCloseCallback(mImpl->window, [](GLFWwindow* w) {
+        if (auto* self = GetSelf(w)) {
+            ct::events::WindowCloseEvent e{};
+            self->DispatchEvent(e);
+        }
+    });
+
+    // Framebuffer resize is the correct signal for swapchain/viewport size.
     glfwSetFramebufferSizeCallback(mImpl->window, [](GLFWwindow* w, int width, int height) {
-        auto* self = static_cast<Window*>(glfwGetWindowUserPointer(w));
-        if (!self) return;
-        self->HandleResize(static_cast<u32>(width), static_cast<u32>(height));
+        if (auto* self = GetSelf(w)) {
+            self->HandleResize(static_cast<u32>(width), static_cast<u32>(height));
+        }
     });
 
     glfwSetWindowContentScaleCallback(mImpl->window, [](GLFWwindow* w, float sx, float sy) {
-        auto* self = static_cast<Window*>(glfwGetWindowUserPointer(w));
-        if (!self) return;
-        self->mContentScaleX = sx;
-        self->mContentScaleY = sy;
+        if (auto* self = GetSelf(w)) {
+            self->mContentScaleX = sx;
+            self->mContentScaleY = sy;
+        }
+    });
+
+    glfwSetWindowFocusCallback(mImpl->window, [](GLFWwindow* w, int focused) {
+        if (auto* self = GetSelf(w)) {
+            if (focused) {
+                ct::events::WindowFocusEvent e{};
+                self->DispatchEvent(e);
+            } else {
+                ct::events::WindowLostFocusEvent e{};
+                self->DispatchEvent(e);
+            }
+        }
+    });
+
+    glfwSetWindowPosCallback(mImpl->window, [](GLFWwindow* w, int x, int y) {
+        if (auto* self = GetSelf(w)) {
+            ct::events::WindowMovedEvent e{static_cast<i32>(x), static_cast<i32>(y)};
+            self->DispatchEvent(e);
+        }
+    });
+
+    glfwSetWindowIconifyCallback(mImpl->window, [](GLFWwindow* w, int iconified) {
+        if (auto* self = GetSelf(w)) {
+            if (iconified) {
+                ct::events::WindowMinimizedEvent e{};
+                self->DispatchEvent(e);
+            } else {
+                ct::events::WindowRestoredEvent e{};
+                self->DispatchEvent(e);
+            }
+        }
+    });
+
+    glfwSetWindowMaximizeCallback(mImpl->window, [](GLFWwindow* w, int maximized) {
+        if (auto* self = GetSelf(w)) {
+            if (maximized) {
+                ct::events::WindowMaximizedEvent e{};
+                self->DispatchEvent(e);
+            } else {
+                ct::events::WindowRestoredEvent e{};
+                self->DispatchEvent(e);
+            }
+        }
+    });
+
+    // --------------------------
+    // Keyboard events
+    // --------------------------
+
+    glfwSetKeyCallback(mImpl->window, [](GLFWwindow* w, int key, int, int action, int) {
+        if (auto* self = GetSelf(w)) {
+            const auto kc = ToKeyCode(key);
+
+            if (action == GLFW_PRESS) {
+                ct::events::KeyPressedEvent e{kc, 0};
+                self->DispatchEvent(e);
+            } else if (action == GLFW_REPEAT) {
+                ct::events::KeyPressedEvent e{kc, 1};
+                self->DispatchEvent(e);
+            } else if (action == GLFW_RELEASE) {
+                ct::events::KeyReleasedEvent e{kc};
+                self->DispatchEvent(e);
+            }
+        }
+    });
+
+    glfwSetCharCallback(mImpl->window, [](GLFWwindow* w, unsigned int codepoint) {
+        if (auto* self = GetSelf(w)) {
+            ct::events::KeyTypedEvent e{static_cast<u32>(codepoint)};
+            self->DispatchEvent(e);
+        }
+    });
+
+    // --------------------------
+    // Mouse events
+    // --------------------------
+
+    glfwSetCursorPosCallback(mImpl->window, [](GLFWwindow* w, double x, double y) {
+        if (auto* self = GetSelf(w)) {
+            const f32 fx = static_cast<f32>(x);
+            const f32 fy = static_cast<f32>(y);
+
+            f32 dx = 0.0f;
+            f32 dy = 0.0f;
+
+            if (self->mHasLastMousePos) {
+                dx = fx - self->mLastMouseX;
+                dy = fy - self->mLastMouseY;
+            } else {
+                self->mHasLastMousePos = true;
+            }
+
+            self->mLastMouseX = fx;
+            self->mLastMouseY = fy;
+
+            ct::events::MouseMovedEvent e{fx, fy, dx, dy};
+            self->DispatchEvent(e);
+        }
+    });
+
+    glfwSetScrollCallback(mImpl->window, [](GLFWwindow* w, double ox, double oy) {
+        if (auto* self = GetSelf(w)) {
+            ct::events::MouseScrolledEvent e{static_cast<f32>(ox), static_cast<f32>(oy)};
+            self->DispatchEvent(e);
+        }
+    });
+
+    glfwSetMouseButtonCallback(mImpl->window, [](GLFWwindow* w, int button, int action, int) {
+        if (auto* self = GetSelf(w)) {
+            const auto mb = ToMouseButton(button);
+
+            double x = 0.0, y = 0.0;
+            glfwGetCursorPos(w, &x, &y);
+            const f32 fx = static_cast<f32>(x);
+            const f32 fy = static_cast<f32>(y);
+
+            if (action == GLFW_PRESS) {
+                ct::events::MouseButtonPressedEvent e{mb, fx, fy};
+                self->DispatchEvent(e);
+            } else if (action == GLFW_RELEASE) {
+                ct::events::MouseButtonReleasedEvent e{mb, fx, fy};
+                self->DispatchEvent(e);
+
+                // Convenience event (release -> click)
+                ct::events::MouseButtonClickedEvent c{mb, fx, fy};
+                self->DispatchEvent(c);
+            }
+        }
+    });
+
+    glfwSetCursorEnterCallback(mImpl->window, [](GLFWwindow* w, int entered) {
+        if (auto* self = GetSelf(w)) {
+            if (entered) {
+                ct::events::MouseEnteredEvent e{};
+                self->DispatchEvent(e);
+            } else {
+                ct::events::MouseLeftEvent e{};
+                self->DispatchEvent(e);
+            }
+        }
     });
 }
 
@@ -231,14 +405,14 @@ void Window::SetupEmscriptenResize() noexcept {
 
         if (pixelW == 0 || pixelH == 0) return EM_FALSE;
 
-        emscripten_set_canvas_element_size(
-            "canvas", static_cast<int>(pixelW), static_cast<int>(pixelH));
+        emscripten_set_canvas_element_size("canvas", static_cast<int>(pixelW), static_cast<int>(pixelH));
         self->HandleResize(pixelW, pixelH);
         return EM_TRUE;
     };
 
     emscripten_set_resize_callback(EMSCRIPTEN_EVENT_TARGET_WINDOW, this, false, cb);
 
+    // Initial sizing
     double cssW = 0.0, cssH = 0.0;
     emscripten_get_element_css_size("canvas", &cssW, &cssH);
 
@@ -247,20 +421,11 @@ void Window::SetupEmscriptenResize() noexcept {
     const u32 pixelH = static_cast<u32>(cssH * dpr);
 
     if (pixelW > 0 && pixelH > 0) {
-        emscripten_set_canvas_element_size(
-            "canvas", static_cast<int>(pixelW), static_cast<int>(pixelH));
+        emscripten_set_canvas_element_size("canvas", static_cast<int>(pixelW), static_cast<int>(pixelH));
         HandleResize(pixelW, pixelH);
     }
 }
 #endif
-
-CallbackId Window::AddResizeCallback(ResizeCallback callback) {
-    const CallbackId id = mNextCallbackId++;
-    mResizeCallbacks.emplace(id, std::move(callback));
-    return id;
-}
-
-void Window::RemoveResizeCallback(CallbackId id) { mResizeCallbacks.erase(id); }
 
 const std::string& Window::GetTitle() const noexcept { return mTitle; }
 u32 Window::GetWidth() const noexcept { return mWidth; }

@@ -1,6 +1,7 @@
 #pragma once
+
+#include "enums.hpp"
 #include <toolbox/base/base.hpp>
-#include <toolbox/gfx/api/texture.hpp>
 
 namespace ct::gfx {
 

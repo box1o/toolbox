@@ -1,33 +1,16 @@
 #pragma once
 #include <toolbox/base/base.hpp>
-#include <toolbox/gfx/api/types.hpp>
-#include <toolbox/gfx/common.hpp>
+#include <toolbox/gfx/api/common.hpp>
 
 namespace ct::gfx {
 
-struct AdapterInfo {
-    std::string vendor{};
-    std::string architecture{};
-    std::string device{};
-    std::string description{};
-    u32 backendType{0};
-    u32 adapterType{0};
-};
-
-struct Limits {
-    u32 maxVertexAttributes{0};
-    u32 maxColorAttachments{0};
-    u32 maxTextureDimension2D{0};
-    u64 maxBufferSize{0};
-    u32 maxBindGroups{0};
-};
+enum class Backend : u8 { Auto = 0, Vulkan, DirectX12, Metal, OpenGL, WebGPU };
+enum class PowerPreference : u8 { LowPower = 0, HighPerformance };
 
 struct DeviceDesc {
     Backend backend{Backend::Auto};
     PowerPreference powerPreference{PowerPreference::HighPerformance};
     bool enableValidation{true};
-    DebugConfig debug{};
-    std::string debugName{"Device"};
 };
 
 struct DeviceNativeHandles {
@@ -43,7 +26,6 @@ public:
 
     [[nodiscard]] virtual const AdapterInfo& GetAdapterInfo() const noexcept = 0;
     [[nodiscard]] virtual const Limits& GetLimits() const noexcept = 0;
-
 
     [[nodiscard]] virtual DeviceNativeHandles GetNative() const noexcept = 0;
 

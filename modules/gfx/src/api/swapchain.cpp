@@ -1,7 +1,8 @@
+#include <toolbox/gfx/api/swapchain.hpp>
+
 #include <toolbox/base/logger/logger.hpp>
 #include <toolbox/gfx/api/device.hpp>
 #include <toolbox/gfx/api/surface.hpp>
-#include <toolbox/gfx/api/swapchain.hpp>
 
 #if defined(USE_WEBGPU_BACKEND)
 #include "../../backend/webgpu/swapchain_impl.hpp"

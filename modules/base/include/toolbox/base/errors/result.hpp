@@ -81,4 +81,17 @@ template <typename T>
         ::ct::detail::unwrap(std::move(_try_result));                                              \
     })
 
+#define TRY_RETURN(expr)                                                                           \
+    ({                                                                                             \
+        auto _try_result = (expr);                                                                 \
+        if (!_try_result) {                                                                        \
+            const char* _err_file = __FILE__;                                                      \
+            int _err_line = __LINE__;                                                              \
+            std::string _err_msg{_try_result.error().Message()};                                   \
+            log::Critical("TRY_RETURN failed at {}:{}: {}", _err_file, _err_line, _err_msg);       \
+            return err(_try_result.error());                                                       \
+        }                                                                                          \
+        ::ct::detail::unwrap(std::move(_try_result));                                              \
+    })
+
 } // namespace ct

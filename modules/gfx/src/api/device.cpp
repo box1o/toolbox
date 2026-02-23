@@ -1,5 +1,6 @@
-#include <toolbox/base/logger/logger.hpp>
 #include <toolbox/gfx/api/device.hpp>
+
+#include <toolbox/base/logger/logger.hpp>
 
 #if defined(USE_WEBGPU_BACKEND)
 #include "../../backend/webgpu/device_impl.hpp"

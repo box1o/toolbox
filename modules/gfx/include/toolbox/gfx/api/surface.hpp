@@ -7,7 +7,7 @@ class Device;
 class Window;
 
 struct SurfaceDesc {
-    std::string debugName{"Surface"};
+    // Placeholder for future surface configuration options
 };
 
 class Surface {

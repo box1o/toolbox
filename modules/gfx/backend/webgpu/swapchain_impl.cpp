@@ -1,11 +1,52 @@
 #include "swapchain_impl.hpp"
-#include "conversion.hpp"
 #include "device_impl.hpp"
 #include "surface_impl.hpp"
 
 #include <toolbox/base/logger/logger.hpp>
 
 namespace ct::gfx::webgpu {
+
+namespace detail {
+
+static constexpr wgpu::TextureFormat ToWGPU(TextureFormat fmt) noexcept {
+    switch (fmt) {
+    case TextureFormat::RGBA8Unorm:
+        return wgpu::TextureFormat::RGBA8Unorm;
+    case TextureFormat::RGBA8UnormSrgb:
+        return wgpu::TextureFormat::RGBA8UnormSrgb;
+    case TextureFormat::BGRA8Unorm:
+        return wgpu::TextureFormat::BGRA8Unorm;
+    case TextureFormat::BGRA8UnormSrgb:
+        return wgpu::TextureFormat::BGRA8UnormSrgb;
+    case TextureFormat::Depth16Unorm:
+        return wgpu::TextureFormat::Depth16Unorm;
+    case TextureFormat::Depth24Plus:
+        return wgpu::TextureFormat::Depth24Plus;
+    case TextureFormat::Depth24PlusStencil8:
+        return wgpu::TextureFormat::Depth24PlusStencil8;
+    case TextureFormat::Depth32Float:
+        return wgpu::TextureFormat::Depth32Float;
+    case TextureFormat::Depth32FloatStencil8:
+        return wgpu::TextureFormat::Depth32FloatStencil8;
+    default:
+        return wgpu::TextureFormat::Undefined;
+    }
+}
+
+static constexpr wgpu::PresentMode ToWGPU(PresentMode pm) noexcept {
+    switch (pm) {
+    case PresentMode::Immediate:
+        return wgpu::PresentMode::Immediate;
+    case PresentMode::Mailbox:
+        return wgpu::PresentMode::Mailbox;
+    case PresentMode::VSync:
+        return wgpu::PresentMode::Fifo;
+    default:
+        return wgpu::PresentMode::Fifo;
+    }
+}
+
+} // namespace detail
 
 result<void> SwapchainImpl::Initialize(
     ref<Device> device, ref<Surface> surface, const SwapchainDesc& desc) noexcept {
@@ -74,11 +115,11 @@ result<void> SwapchainImpl::Configure() noexcept {
 
     wgpu::SurfaceConfiguration cfg{};
     cfg.device = mDevice;
-    cfg.format = ToWGPU(mColorFormat);
+    cfg.format = detail::ToWGPU(mColorFormat);
     cfg.usage = wgpu::TextureUsage::RenderAttachment;
     cfg.width = mWidth;
     cfg.height = mHeight;
-    cfg.presentMode = ToWGPU(mDesc.presentMode);
+    cfg.presentMode = detail::ToWGPU(mDesc.presentMode);
     cfg.alphaMode = wgpu::CompositeAlphaMode::Auto;
 
     mSurface.Configure(&cfg);
@@ -99,7 +140,7 @@ result<void> SwapchainImpl::CreateOrResizeDepth() noexcept {
     td.size = {mWidth, mHeight, 1};
     td.mipLevelCount = 1;
     td.sampleCount = 1;
-    td.format = ToWGPU(mDepthFormat);
+    td.format = detail::ToWGPU(mDepthFormat);
     td.usage = wgpu::TextureUsage::RenderAttachment;
 
     mDepthTex = mDevice.CreateTexture(&td);

@@ -15,7 +15,7 @@ result<ref<Queue>> Queue::Create(ref<Device> device, const QueueDesc& desc) noex
     return ok(std::move(queue));
 #else
     (void)desc;
-    log::Critical("Device creation failed: no graphics backend available");
+    log::Critical("Queue creation failed: no graphics backend available");
     std::abort();
 #endif
 }

@@ -17,11 +17,21 @@ template <typename T> using result = std::expected<T, Error>;
 
 namespace detail {
 
+inline void unwrap(result<void>&& r) noexcept {
+#ifdef DEBUG
+    if (!r) {
+        log::Critical("Attempted to unwrap an error result: {}", r.error().Message());
+        std::abort();
+    }
+#endif
+    // nothing to return
+}
+
 template <typename T> constexpr T&& unwrap(result<T>&& r) noexcept {
 #ifdef DEBUG
     if (!r) {
         log::Critical("Attempted to unwrap an error result: {}", r.error().Message());
-        std::abort(); // invariant violation
+        std::abort();
     }
 #endif
     return std::move(*r);

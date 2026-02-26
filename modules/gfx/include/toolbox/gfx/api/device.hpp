@@ -1,39 +1,39 @@
 #pragma once
+#include "common.hpp"
+
 #include <toolbox/base/base.hpp>
-#include <toolbox/gfx/api/common.hpp>
 
 namespace ct::gfx {
-
-enum class Backend : u8 { Auto = 0, Vulkan, DirectX12, Metal, OpenGL, WebGPU };
-enum class PowerPreference : u8 { LowPower = 0, HighPerformance };
-
-struct DeviceDesc {
-    Backend backend{Backend::Auto};
-    PowerPreference powerPreference{PowerPreference::HighPerformance};
-    bool enableValidation{true};
+enum class PowerProfile : u8 {
+    LowPower,
+    HighPerformance,
 };
 
-struct DeviceNativeHandles {
-    void* instance{nullptr};
-    void* adapter{nullptr};
-    void* device{nullptr};
-    void* queue{nullptr};
+struct DeviceDesc {
+    PowerProfile powerPreference{PowerProfile::HighPerformance};
 };
 
 class Device {
 public:
     virtual ~Device() = default;
 
-    [[nodiscard]] virtual const AdapterInfo& GetAdapterInfo() const noexcept = 0;
-    [[nodiscard]] virtual const Limits& GetLimits() const noexcept = 0;
+    [[nodiscard]] virtual Limits& GetLimits() noexcept = 0;
+    [[nodiscard]] virtual AdapterInfo& GetAdapterInfo() noexcept = 0;
 
-    [[nodiscard]] virtual DeviceNativeHandles GetNative() const noexcept = 0;
+    [[nodiscard]] virtual void* GetNativeInstanceHandle() noexcept = 0;
+    [[nodiscard]] virtual void* GetNativeDeviceHandle() noexcept = 0;
+    [[nodiscard]] virtual void* GetNativeAdapterHandle() noexcept = 0;
+    [[nodiscard]] virtual void* GetNativeQueueHandle() noexcept = 0;
 
-    virtual void Tick() const noexcept = 0;
+    virtual void Tick() const noexcept {
+    } // For some backends, we may need to tick the device to process events, etc.
+
     [[nodiscard]] static result<ref<Device>> Create(const DeviceDesc& desc = {}) noexcept;
 
 protected:
+    virtual result<void> Initialize() noexcept = 0;
     Device() = default;
+
 };
 
 } // namespace ct::gfx

@@ -1,9 +1,10 @@
 #pragma once
-#include <string>
+
 #include <toolbox/base/base.hpp>
 
-namespace ct::gfx {
+#include <string>
 
+namespace ct::gfx {
 struct AdapterInfo {
     std::string vendor{};
     std::string architecture{};

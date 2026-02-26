@@ -1,4 +1,5 @@
 #include "studio/core/application.hpp"
+#include "toolbox/gfx/events/input/events.hpp"
 
 namespace ct::studio {
 Application::Application() {
@@ -12,7 +13,6 @@ Application::Application() {
     ct::gfx::RendererDesc rDesc{};
     rDesc.enableShadows = true;
 
-    // Pass window via constructor as you requested
     mRenderer = createScope<ct::gfx::Renderer>(mWindow, rDesc);
     TRY_VOID(mRenderer->Initialize());
 }
@@ -33,11 +33,16 @@ bool Application::Update() {
 
 void Application::OnEvent(events::EventBase& event) {
     events::EventDispatcher dispatcher(event);
-    log::Info("Event received: {}", events::ToString(event));
 
     dispatcher.Dispatch<events::WindowResizeEvent>([&](const events::WindowResizeEvent& ev) {
-        // mRenderer->OnResize(ev.width, ev.height);
+        log::Info("Event received: {}", events::ToString(ev));
+        mRenderer->OnResize(ev.width, ev.height);
         return false;
+    });
+
+    dispatcher.Dispatch<events::KeyPressedEvent>([&](const events::KeyPressedEvent& ev) {
+        log::Info("Event received: {}", events::ToString(ev));
+        return true;
     });
 
     // dispatcher.Dispatch<events::KeyPressedEvent>(...);

@@ -1,9 +1,8 @@
 #pragma once
 #include <toolbox/base/base.hpp>
 
-#include "toolbox/gfx/api/device.hpp"
-#include "toolbox/gfx/api/surface.hpp"
-#include "toolbox/gfx/api/swapchain.hpp"
+#include "../api/device.hpp"
+#include "../window/window.hpp"
 
 namespace ct::gfx {
 
@@ -18,7 +17,7 @@ struct RendererDesc {
 
 class Renderer {
 public:
-    Renderer(ref<Window> window ,const RendererDesc& desc);
+    Renderer(ref<Window> window, const RendererDesc& desc);
     ~Renderer();
     result<void> Initialize();
 
@@ -31,8 +30,8 @@ public:
 private:
     ref<Window> mWindow{nullptr};
     ref<Device> mDevice{nullptr};
-    ref<Surface> mSurface{nullptr};
-    ref<Swapchain> mSwapchain{nullptr};
+    // ref<Surface> mSurface{nullptr};
+    // ref<Swapchain> mSwapchain{nullptr};
 };
 
-} // namespace cc::renderer
+} // namespace ct::gfx

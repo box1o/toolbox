@@ -10,18 +10,19 @@ public:
     explicit DeviceImpl(const DeviceDesc& desc);
     ~DeviceImpl() override = default;
 
-    result<void> Initialize() noexcept;
-
-    [[nodiscard]] const wgpu::Instance& InstanceHandle() const noexcept { return mInstance; }
-    [[nodiscard]] const wgpu::Device& DeviceHandle() const noexcept { return mDevice; }
-    [[nodiscard]] const wgpu::Queue& QueueHandle() const noexcept { return mQueue; }
-    [[nodiscard]] const AdapterInfo& GetAdapterInfo() const noexcept override { return mAdapterInfo; }
-
-    [[nodiscard]] const Limits& GetLimits() const noexcept override { return mLimits; }
-
-    [[nodiscard]] DeviceNativeHandles GetNative() const noexcept override;
+    [[nodiscard]] Limits& GetLimits() noexcept override { return mLimits; }
+    [[nodiscard]] AdapterInfo& GetAdapterInfo() noexcept override { return mAdapterInfo; }
+    // clang-format off
+    [[nodiscard]] void* GetNativeInstanceHandle() noexcept override { return static_cast<void*>(mInstance.Get()); }
+    [[nodiscard]] void* GetNativeDeviceHandle() noexcept override { return static_cast<void*>(mDevice.Get()); }
+    [[nodiscard]] void* GetNativeAdapterHandle() noexcept override { return static_cast<void*>(mAdapter.Get()); }
+    [[nodiscard]] void* GetNativeQueueHandle() noexcept override { return static_cast<void*>(mQueue.Get()); }
+    // clang-format on
 
     void Tick() const noexcept override;
+
+    // NOTE: Initialize
+    result<void> Initialize() noexcept override;
 
 private:
     result<void> CreateInstance() noexcept;
@@ -31,9 +32,7 @@ private:
     void QueryAdapterInfo() noexcept;
     void QueryLimits() noexcept;
 
-    static wgpu::PowerPreference ToWGPU(PowerPreference p) noexcept;
-    static std::string ToString(wgpu::StringView sv);
-
+    // Callbacks
     static void OnDeviceLost(const wgpu::Device& device, wgpu::DeviceLostReason reason,
         wgpu::StringView message, DeviceImpl* self);
 

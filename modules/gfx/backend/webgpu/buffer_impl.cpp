@@ -16,20 +16,20 @@ BufferImpl::BufferImpl(ref<Device> device, const BufferDesc& desc)
         mQueue      = *static_cast<wgpu::Queue*>(mDevice->GetNativeQueueHandle());
         mInstance   = *static_cast<wgpu::Instance*>(mDevice->GetNativeInstanceHandle());
 
-        if (!mWgpuDevice) log::Error("BufferImpl: native device handle is null");
-        if (!mQueue)      log::Error("BufferImpl: native queue handle is null");
-        if (!mInstance)   log::Error("BufferImpl: native instance handle is null");
+        if (!mWgpuDevice) log::Error("Buffer: native device handle is null");
+        if (!mQueue)      log::Error("Buffer: native queue handle is null");
+        if (!mInstance)   log::Error("Buffer: native instance handle is null");
     }
 }
 
 result<void> BufferImpl::Initialize() noexcept {
-    if (!mDevice)     return err(ErrorCode::INVALID_ARGUMENT, "BufferImpl::Initialize: device is null");
-    if (!mWgpuDevice) return err(ErrorCode::INVALID_STATE,    "BufferImpl::Initialize: native device is null");
-    if (!mQueue)      return err(ErrorCode::INVALID_STATE,    "BufferImpl::Initialize: native queue is null");
-    if (!mInstance)   return err(ErrorCode::INVALID_STATE,    "BufferImpl::Initialize: native instance is null");
+    if (!mDevice)     return err(ErrorCode::INVALID_ARGUMENT, "Buffer: device is null");
+    if (!mWgpuDevice) return err(ErrorCode::INVALID_STATE,    "Buffer: native device is null");
+    if (!mQueue)      return err(ErrorCode::INVALID_STATE,    "Buffer: native queue is null");
+    if (!mInstance)   return err(ErrorCode::INVALID_STATE,    "Buffer: native instance is null");
 
     if (mDesc.size == 0) {
-        return err(ErrorCode::INVALID_ARGUMENT, "BufferImpl::Initialize: size must be > 0");
+        return err(ErrorCode::INVALID_ARGUMENT, "Buffer: size must be > 0");
     }
 
     // WebGPU is happiest when buffer sizes are aligned.
@@ -42,8 +42,8 @@ result<void> BufferImpl::Initialize() noexcept {
 
     mBuffer = mWgpuDevice.CreateBuffer(&bd);
     if (!mBuffer) {
-        log::Error("BufferImpl::Initialize: wgpu::Device::CreateBuffer failed");
-        return err(ErrorCode::GRAPHICS_RESOURCE_CREATION_FAILED, "BufferImpl::Initialize: CreateBuffer failed");
+        log::Error("Buffer: CreateBuffer failed");
+        return err(ErrorCode::GRAPHICS_RESOURCE_CREATION_FAILED, "Buffer: CreateBuffer failed");
     }
 
     return ok();
@@ -51,28 +51,27 @@ result<void> BufferImpl::Initialize() noexcept {
 
 result<void> BufferImpl::Update(u64 byteOffset, const void* data, u64 numBytes) noexcept {
     if (!mBuffer || !mQueue) {
-        return err(ErrorCode::INVALID_STATE, "BufferImpl::Update: not initialized");
+        return err(ErrorCode::INVALID_STATE, "Buffer: not initialized");
     }
     if (!data) {
-        return err(ErrorCode::INVALID_ARGUMENT, "BufferImpl::Update: data is null");
+        return err(ErrorCode::INVALID_ARGUMENT, "Buffer: data is null");
     }
     if (numBytes == 0) {
-        return err(ErrorCode::INVALID_ARGUMENT, "BufferImpl::Update: numBytes is 0");
+        return err(ErrorCode::INVALID_ARGUMENT, "Buffer: numBytes is 0");
     }
 
     if (!HasFlag(mDesc.usage, BufferUsageFlags::CopyDst)) {
-        return err(ErrorCode::INVALID_STATE, "BufferImpl::Update: buffer missing CopyDst usage");
+        return err(ErrorCode::INVALID_STATE, "Buffer buffer missing CopyDst usage");
     }
 
     // WebGPU requires offset and size to be multiples of 4 for WriteBuffer.
     if ((byteOffset % 4u) != 0u || (numBytes % 4u) != 0u) {
         return err(ErrorCode::INVALID_ARGUMENT,
-            "BufferImpl::Update: byteOffset and numBytes must be multiples of 4");
+            "Buffer: byteOffset and numBytes must be multiples of 4");
     }
 
-    // Range must fit inside allocated buffer.
     if (byteOffset + numBytes > mAllocatedSize) {
-        return err(ErrorCode::OUT_OF_RANGE, "BufferImpl::Update: write range exceeds buffer size");
+        return err(ErrorCode::OUT_OF_RANGE, "Buffer: write range exceeds buffer size");
     }
 
     mQueue.WriteBuffer(mBuffer, static_cast<size_t>(byteOffset), data, static_cast<size_t>(numBytes));
@@ -86,19 +85,16 @@ result<void*> BufferImpl::MapImpl(
     u64 numBytes) noexcept {
 
     if (!mBuffer || !mInstance) {
-        return err(ErrorCode::INVALID_STATE, "BufferImpl::MapImpl: not initialized");
+        return err(ErrorCode::INVALID_STATE, "Buffer: not initialized");
     }
 
     if (!HasFlag(mDesc.usage, requiredFlag)) {
         const bool isWrite = (mode == wgpu::MapMode::Write);
         return err(ErrorCode::INVALID_STATE,
-            isWrite ? "BufferImpl::MapWrite: buffer missing MapWrite usage"
-                    : "BufferImpl::MapRead:  buffer missing MapRead usage");
+            isWrite ? "Buffer: buffer missing MapWrite usage"
+                    : "Buffer:  buffer missing MapRead usage");
     }
 
-    // Safe alignment rules for WebGPU mapping:
-    // - offset: commonly required to be 8-byte aligned
-    // - size: must be multiple of 4 bytes (and non-zero)
     if ((byteOffset % 8u) != 0u) {
         return err(ErrorCode::INVALID_ARGUMENT, "BufferImpl::MapImpl: byteOffset must be 8-byte aligned");
     }
@@ -136,7 +132,6 @@ result<void*> BufferImpl::MapImpl(
 
     wgpu::FutureWaitInfo waitInfo{ future, false };
 
-    // IMPORTANT: wait; do not use timeout=0 (that only polls once).
     wgpu::WaitStatus waitStatus = mInstance.WaitAny(
         1,
         &waitInfo,

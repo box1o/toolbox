@@ -11,19 +11,13 @@ public:
     explicit BufferImpl(ref<Device> device, const BufferDesc& desc);
     ~BufferImpl() override = default;
 
-    // Public API returns the requested/logical size (not the padded allocation).
     [[nodiscard]] u64 GetSize() const noexcept override { return mDesc.size; }
     [[nodiscard]] BufferType GetType() const noexcept override { return mDesc.type; }
     [[nodiscard]] BufferUsageFlags GetUsage() const noexcept override { return mDesc.usage; }
-
-    // Native handle: pointer to wgpu::Buffer wrapper object.
-    [[nodiscard]] void* GetNativeBufferHandle() noexcept override {
-        return static_cast<void*>(&mBuffer);
-    }
+    [[nodiscard]] void* GetNativeBufferHandle() noexcept override { return static_cast<void*>(&mBuffer); }
 
     [[nodiscard]] result<void*> MapWrite(u64 byteOffset = 0, u64 numBytes = 0) noexcept override;
-    [[nodiscard]] result<const void*> MapRead(
-        u64 byteOffset = 0, u64 numBytes = 0) noexcept override;
+    [[nodiscard]] result<const void*> MapRead( u64 byteOffset = 0, u64 numBytes = 0) noexcept override;
     void Unmap() noexcept override;
 
     result<void> Update(u64 byteOffset, const void* data, u64 numBytes) noexcept override;
@@ -31,9 +25,7 @@ public:
     result<void> Initialize() noexcept override;
 private:
     static constexpr u64 AlignUp(u64 v, u64 a) noexcept { return (v + (a - 1u)) & ~(a - 1u); }
-
-    [[nodiscard]] result<void*> MapImpl(
-        wgpu::MapMode mode, BufferUsageFlags requiredFlag, u64 byteOffset, u64 numBytes) noexcept;
+    [[nodiscard]] result<void*> MapImpl(wgpu::MapMode mode, BufferUsageFlags requiredFlag, u64 byteOffset, u64 numBytes) noexcept;
 
 private:
     BufferDesc mDesc{};

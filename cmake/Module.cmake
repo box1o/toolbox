@@ -29,6 +29,8 @@ function(add_module name)
 
     target_compile_features(${target} PUBLIC cxx_std_23)
 
+    target_compile_options(${target} PRIVATE $<$<CONFIG:Debug>:-g>)
+
     apply_compiler_options(${target})
 
     install(TARGETS ${target}

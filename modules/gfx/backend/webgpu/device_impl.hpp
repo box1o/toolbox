@@ -13,10 +13,10 @@ public:
     [[nodiscard]] Limits& GetLimits() noexcept override { return mLimits; }
     [[nodiscard]] AdapterInfo& GetAdapterInfo() noexcept override { return mAdapterInfo; }
     // clang-format off
-    [[nodiscard]] void* GetNativeInstanceHandle() noexcept override { return static_cast<void*>(mInstance.Get()); }
-    [[nodiscard]] void* GetNativeDeviceHandle() noexcept override { return static_cast<void*>(mDevice.Get()); }
-    [[nodiscard]] void* GetNativeAdapterHandle() noexcept override { return static_cast<void*>(mAdapter.Get()); }
-    [[nodiscard]] void* GetNativeQueueHandle() noexcept override { return static_cast<void*>(mQueue.Get()); }
+    [[nodiscard]] void* GetNativeInstanceHandle() noexcept override { return static_cast<void*>(&mInstance); }
+    [[nodiscard]] void* GetNativeDeviceHandle() noexcept override { return static_cast<void*>(&mDevice); }
+    [[nodiscard]] void* GetNativeAdapterHandle() noexcept override { return static_cast<void*>(&mAdapter); }
+    [[nodiscard]] void* GetNativeQueueHandle() noexcept override { return static_cast<void*>(&mQueue); }
     // clang-format on
 
     void Tick() const noexcept override;

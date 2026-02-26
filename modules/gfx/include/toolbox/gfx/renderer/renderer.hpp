@@ -2,6 +2,7 @@
 #include <toolbox/base/base.hpp>
 
 #include "../api/device.hpp"
+#include "../api/swapchain.hpp"
 #include "../window/window.hpp"
 
 namespace ct::gfx {
@@ -30,8 +31,7 @@ public:
 private:
     ref<Window> mWindow{nullptr};
     ref<Device> mDevice{nullptr};
-    // ref<Surface> mSurface{nullptr};
-    // ref<Swapchain> mSwapchain{nullptr};
+    ref<Swapchain> mSwapchain{nullptr};
 };
 
 } // namespace ct::gfx

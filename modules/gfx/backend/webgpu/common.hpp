@@ -1,6 +1,7 @@
 #pragma once
 #include <toolbox/gfx/api/buffer.hpp>
 #include <toolbox/gfx/api/device.hpp>
+#include <toolbox/gfx/api/sampler.hpp>
 #include <toolbox/gfx/api/texture.hpp>
 #include <webgpu/webgpu_cpp.h>
 
@@ -22,7 +23,6 @@ constexpr std::string ToString(wgpu::StringView sv) noexcept {
     return std::string(sv.data, sv.length);
 }
 
-
 // NOTE: Buffer
 constexpr wgpu::BufferUsage ToWGPU(BufferUsageFlags usage) noexcept {
     wgpu::BufferUsage out = wgpu::BufferUsage::None;
@@ -41,20 +41,29 @@ constexpr wgpu::BufferUsage ToWGPU(BufferUsageFlags usage) noexcept {
     return out;
 }
 
-
 // NOTE: Texture
 constexpr wgpu::TextureFormat ToWGPU(TextureFormat fmt) noexcept {
     switch (fmt) {
-    case TextureFormat::RGBA8Unorm: return wgpu::TextureFormat::RGBA8Unorm;
-    case TextureFormat::RGBA8UnormSrgb: return wgpu::TextureFormat::RGBA8UnormSrgb;
-    case TextureFormat::BGRA8Unorm: return wgpu::TextureFormat::BGRA8Unorm;
-    case TextureFormat::BGRA8UnormSrgb: return wgpu::TextureFormat::BGRA8UnormSrgb;
-    case TextureFormat::Depth16Unorm: return wgpu::TextureFormat::Depth16Unorm;
-    case TextureFormat::Depth24Plus: return wgpu::TextureFormat::Depth24Plus;
-    case TextureFormat::Depth24PlusStencil8: return wgpu::TextureFormat::Depth24PlusStencil8;
-    case TextureFormat::Depth32Float: return wgpu::TextureFormat::Depth32Float;
-    case TextureFormat::Depth32FloatStencil8: return wgpu::TextureFormat::Depth32FloatStencil8;
-    default: return wgpu::TextureFormat::Undefined;
+    case TextureFormat::RGBA8Unorm:
+        return wgpu::TextureFormat::RGBA8Unorm;
+    case TextureFormat::RGBA8UnormSrgb:
+        return wgpu::TextureFormat::RGBA8UnormSrgb;
+    case TextureFormat::BGRA8Unorm:
+        return wgpu::TextureFormat::BGRA8Unorm;
+    case TextureFormat::BGRA8UnormSrgb:
+        return wgpu::TextureFormat::BGRA8UnormSrgb;
+    case TextureFormat::Depth16Unorm:
+        return wgpu::TextureFormat::Depth16Unorm;
+    case TextureFormat::Depth24Plus:
+        return wgpu::TextureFormat::Depth24Plus;
+    case TextureFormat::Depth24PlusStencil8:
+        return wgpu::TextureFormat::Depth24PlusStencil8;
+    case TextureFormat::Depth32Float:
+        return wgpu::TextureFormat::Depth32Float;
+    case TextureFormat::Depth32FloatStencil8:
+        return wgpu::TextureFormat::Depth32FloatStencil8;
+    default:
+        return wgpu::TextureFormat::Undefined;
     }
 }
 
@@ -67,6 +76,25 @@ constexpr wgpu::TextureUsage ToWGPUUsage(TextureUsageFlags usage) noexcept {
     if (HasFlag(usage, TextureUsageFlags::CopySrc)) out |= wgpu::TextureUsage::CopySrc;
     if (HasFlag(usage, TextureUsageFlags::CopyDst)) out |= wgpu::TextureUsage::CopyDst;
     return out;
+}
+
+
+// NOTE: Sampler
+constexpr wgpu::FilterMode ToWGPU(TextureFilter f) noexcept {
+    switch (f) {
+    case TextureFilter::Nearest:        return wgpu::FilterMode::Nearest;
+    case TextureFilter::Linear:         return wgpu::FilterMode::Linear;
+    default:                            return wgpu::FilterMode::Nearest;
+    }
+}
+
+constexpr wgpu::AddressMode ToWGPU(TextureWrap w) noexcept {
+    switch (w) {
+    case TextureWrap::Repeat:           return wgpu::AddressMode::Repeat;
+    case TextureWrap::MirrorRepeat:     return wgpu::AddressMode::MirrorRepeat;
+    case TextureWrap::ClampToEdge:      return wgpu::AddressMode::ClampToEdge;
+    default:                            return wgpu::AddressMode::Repeat;
+    }
 }
 
 } // namespace ct::gfx::detail

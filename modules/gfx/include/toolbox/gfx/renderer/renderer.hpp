@@ -3,6 +3,7 @@
 
 #include "../api/device.hpp"
 #include "../api/swapchain.hpp"
+#include "../api/queue.hpp"
 #include "../window/window.hpp"
 
 namespace ct::gfx {
@@ -32,6 +33,7 @@ private:
     ref<Window> mWindow{nullptr};
     ref<Device> mDevice{nullptr};
     ref<Swapchain> mSwapchain{nullptr};
+    ref<Queue> mQueue{nullptr};
 };
 
 } // namespace ct::gfx

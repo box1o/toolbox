@@ -2,6 +2,8 @@
 #include "toolbox/base/base.hpp"
 #include "toolbox/base/errors/result.hpp"
 
+#include <atomic>
+
 #include "common.hpp"
 #include <webgpu/webgpu_cpp.h>
 
@@ -13,13 +15,13 @@ namespace ct::gfx::webgpu {
 
 namespace {
 struct AdapterReqState {
-    std::atomic_bool done{false};
+    std::atomic<bool> done{false};
     wgpu::Adapter adapter{nullptr};
     std::string message{};
 };
 
 struct DeviceReqState {
-    std::atomic_bool done{false};
+    std::atomic<bool> done{false};
     wgpu::Device device{nullptr};
     std::string message{};
 };

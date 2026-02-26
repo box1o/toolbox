@@ -12,6 +12,7 @@ int main(int argc, char* argv[]) {
     studio::Application app;
 
 #if defined(__EMSCRIPTEN__)
+    log::Info("Running in Emscripten environment, using main loop");
     emscripten_set_main_loop_arg(
         [](void* arg) {
             auto* app = static_cast<studio::Application*>(arg);

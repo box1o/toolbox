@@ -1,5 +1,6 @@
 #include "../../include/toolbox/gfx/renderer/renderer.hpp"
 #include "toolbox/base/errors/result.hpp"
+#include <webgpu/webgpu_cpp.h>
 
 namespace ct::gfx {
 
@@ -14,6 +15,9 @@ result<void> Renderer::Initialize() {
     mSwapchain = TRY_RETURN(Swapchain::Create(mDevice, mWindow));
     log::Info("Renderer: Swapchain created successfully");
 
+    mQueue = TRY_RETURN(Queue::Create(mDevice));
+    log::Info("Renderer: Queue created successfully");
+
     return ok();
 }
 
@@ -22,7 +26,18 @@ void Renderer::EndFrame() {
     mDevice->Tick();
     auto frame = mSwapchain->AcquireNextFrame();
 
+
+
+
+    // auto queue = static_cast<wgpu::Queue*>(mDevice->GetNativeQueueHandle());
+    // queue->Submit(size_t commandCount, const CommandBuffer *commands)
+
+
+    // mQueue->Submit({});
+
     TRY_VOID(mSwapchain->Present());
+
+
 }
 
 // void Submit();

@@ -3,6 +3,7 @@
 #include <toolbox/gfx/api/device.hpp>
 #include <toolbox/gfx/api/sampler.hpp>
 #include <toolbox/gfx/api/texture.hpp>
+#include <toolbox/gfx/api/shader.hpp>
 #include <webgpu/webgpu_cpp.h>
 
 namespace ct::gfx::detail {
@@ -96,5 +97,17 @@ constexpr wgpu::AddressMode ToWGPU(TextureWrap w) noexcept {
     default:                            return wgpu::AddressMode::Repeat;
     }
 }
+
+
+// clang-format off
+constexpr std::string StageFlagsToString(ShaderStage flags) noexcept {
+    std::string out;
+    if (HasStage(flags, ShaderStage::Vertex))   {                                 out += "vertex";   }
+    if (HasStage(flags, ShaderStage::Fragment)) { if (!out.empty()) out += " | "; out += "fragment"; }
+    if (HasStage(flags, ShaderStage::Compute))  { if (!out.empty()) out += " | "; out += "compute";  }
+    if (out.empty()) out = "none";
+    return out;
+}
+// clang-format on
 
 } // namespace ct::gfx::detail

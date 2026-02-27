@@ -1,6 +1,7 @@
 #include "studio/core/application.hpp"
 #include <toolbox/base/base.hpp>
 #include <toolbox/gfx/gfx.hpp>
+#include <webgpu/webgpu_cpp.h>
 
 #if defined(__EMSCRIPTEN__)
 #include <emscripten.h>

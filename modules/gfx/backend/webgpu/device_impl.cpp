@@ -5,6 +5,7 @@
 #include <atomic>
 
 #include "common.hpp"
+#include "toolbox/base/logger/logger.hpp"
 #include <webgpu/webgpu_cpp.h>
 
 #if defined(WEBGPU_BACKEND_EMSCRIPTEN)
@@ -38,8 +39,16 @@ static inline void PumpUntilDone(wgpu::Instance& instance, const std::atomic_boo
 
 // clang-format off
 void DeviceImpl::OnDeviceLost(
-    const wgpu::Device&, wgpu::DeviceLostReason, wgpu::StringView message, DeviceImpl* self) {
+    const wgpu::Device&, wgpu::DeviceLostReason reason, wgpu::StringView message, DeviceImpl* self) {
     if (!self) return;
+    if (!message.data || message.length == 0) {
+        log::Warn("[wgpu] Device lost with no message");
+        return;
+    }
+    if (reason == wgpu::DeviceLostReason::Destroyed) {
+        log::Info("[wgpu] Device lost: device was destroyed");
+        return;
+    }
     log::Warn("[wgpu] Device lost: {}", detail::ToString(message));
 }
 

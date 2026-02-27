@@ -18,6 +18,10 @@ result<void> Renderer::Initialize() {
     mQueue = TRY_RETURN(Queue::Create(mDevice));
     log::Info("Renderer: Queue created successfully");
 
+    mShader = TRY_RETURN(Shader::Create(mDevice)
+            .AddShaderFile( ShaderStage::Vertex | ShaderStage::Fragment, "resources/shaders/mesh.wgsl")
+            .Build());
+
     return ok();
 }
 
@@ -26,24 +30,16 @@ void Renderer::EndFrame() {
     mDevice->Tick();
     auto frame = mSwapchain->AcquireNextFrame();
 
-
-
-
     // auto queue = static_cast<wgpu::Queue*>(mDevice->GetNativeQueueHandle());
     // queue->Submit(size_t commandCount, const CommandBuffer *commands)
-
 
     // mQueue->Submit({});
 
     TRY_VOID(mSwapchain->Present());
-
-
 }
 
 // void Submit();
 
-void Renderer::OnResize(u32 width, u32 height) noexcept {
-    mSwapchain->Resize(width, height);
-}
+void Renderer::OnResize(u32 width, u32 height) noexcept { mSwapchain->Resize(width, height); }
 
 } // namespace ct::gfx

@@ -9,7 +9,6 @@ namespace ct::gfx {
 
 using Path = std::filesystem::path;
 
-// NOTE: ShaderStage flags — combinable via | for multi-stage single-file shaders
 enum class ShaderStage : u8 {
     None = 0,
     Vertex = 1 << 0,
@@ -17,26 +16,14 @@ enum class ShaderStage : u8 {
     Compute = 1 << 2,
 };
 
-[[nodiscard]] constexpr ShaderStage operator|(ShaderStage a, ShaderStage b) noexcept {
-    return static_cast<ShaderStage>(static_cast<u8>(a) | static_cast<u8>(b));
-}
-[[nodiscard]] constexpr ShaderStage operator&(ShaderStage a, ShaderStage b) noexcept {
-    return static_cast<ShaderStage>(static_cast<u8>(a) & static_cast<u8>(b));
-}
-[[nodiscard]] constexpr ShaderStage operator~(ShaderStage a) noexcept {
-    return static_cast<ShaderStage>(~static_cast<u8>(a));
-}
-constexpr ShaderStage& operator|=(ShaderStage& a, ShaderStage b) noexcept {
-    a = a | b;
-    return a;
-}
-constexpr ShaderStage& operator&=(ShaderStage& a, ShaderStage b) noexcept {
-    a = a & b;
-    return a;
-}
-[[nodiscard]] constexpr bool HasStage(ShaderStage flags, ShaderStage stage) noexcept {
-    return (flags & stage) != ShaderStage::None;
-}
+// clang-format off
+[[nodiscard]] constexpr ShaderStage operator|(ShaderStage a, ShaderStage b) noexcept { return static_cast<ShaderStage>(static_cast<u8>(a) | static_cast<u8>(b)); }
+[[nodiscard]] constexpr ShaderStage operator&(ShaderStage a, ShaderStage b) noexcept { return static_cast<ShaderStage>(static_cast<u8>(a) & static_cast<u8>(b)); }
+[[nodiscard]] constexpr ShaderStage operator~(ShaderStage a) noexcept { return static_cast<ShaderStage>(~static_cast<u8>(a)); }
+constexpr ShaderStage& operator|=(ShaderStage& a, ShaderStage b) noexcept { a = a | b; return a; }
+constexpr ShaderStage& operator&=(ShaderStage& a, ShaderStage b) noexcept { a = a & b; return a; }
+[[nodiscard]] constexpr bool HasStage(ShaderStage flags, ShaderStage stage) noexcept { return (flags & stage) != ShaderStage::None; }
+// clang-format on
 
 struct ShaderStageInfo {
     ShaderStage stage{};
@@ -58,20 +45,13 @@ public:
 
     class Builder {
     public:
-        Builder(ref<Device> device, const ShaderDesc& desc)
-            : device(std::move(device)), desc(std::move(desc)) {}
+        Builder(ref<Device> dev, const ShaderDesc& d)
+            : mDevice(std::move(dev)), mDesc(d) {}
 
-        // NOTE: Single stage from file
         Builder& AddShaderStage(ShaderStage stage, const Path& path);
-        // NOTE: Single stage from inline source
-        Builder& AddStageSource(
-            ShaderStage stage, std::string source, std::string name = "sh_stage");
-        // NOTE: Combined stages from a single file (e.g. Vertex | Fragment in one .wgsl)
+        Builder& AddStageSource(ShaderStage stage, std::string source, std::string name = "sh_stage");
         Builder& AddShaderFile(ShaderStage stages, const Path& path);
-        // NOTE: Combined stages from inline source
-        Builder& AddShaderSource(
-            ShaderStage stages, std::string source, std::string name = "sh_combined");
-
+        Builder& AddShaderSource(ShaderStage stages, std::string source, std::string name = "sh_combined");
         Builder& AddIncludePath(const Path& path);
         Builder& EnableReflection(bool enable = true);
         Builder& EnableCache(bool enable = true);
@@ -79,12 +59,12 @@ public:
         result<ref<Shader>> Build() noexcept;
 
     private:
-        ref<Device> device{};
-        ShaderDesc desc{};
-        std::vector<ShaderStageInfo> stages{};
-        std::vector<Path> includePaths{};
-        bool enableReflection{false};
-        bool enableCache{false};
+        ref<Device> mDevice{};
+        ShaderDesc mDesc{};
+        std::vector<ShaderStageInfo> mStages{};
+        std::vector<Path> mIncludePaths{};
+        bool mEnableReflection{false};
+        bool mEnableCache{false};
     };
 
     [[nodiscard]] virtual const std::string& GetEntryPoint() const noexcept = 0;

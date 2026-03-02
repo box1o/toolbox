@@ -106,6 +106,19 @@ if(EMSCRIPTEN)
         OUTPUT_NAME "studio"
         RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}"
     )
+
+    if(EXISTS "${CMAKE_SOURCE_DIR}/web/favicon.svg")
+        add_custom_command(
+            TARGET ${STUDIO_NAME}
+            POST_BUILD
+            COMMAND ${CMAKE_COMMAND} -E copy_if_different
+                "${CMAKE_SOURCE_DIR}/web/favicon.svg"
+                "${CMAKE_BINARY_DIR}/favicon.svg"
+            COMMAND ${CMAKE_COMMAND} -E copy_if_different
+                "${CMAKE_SOURCE_DIR}/web/favicon.svg"
+                "${CMAKE_BINARY_DIR}/favicon.ico"
+        )
+    endif()
 else()
     message(STATUS "Building studio for NATIVE")
     list(APPEND STUDIO_DEPS glfw webgpu_dawn)

@@ -1,5 +1,6 @@
 #pragma once
 #include <toolbox/base/base.hpp>
+#include <span>
 
 namespace ct::gfx {
 

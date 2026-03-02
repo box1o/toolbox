@@ -97,7 +97,9 @@ result<void> SwapchainImpl::Present() noexcept {
         return err(ErrorCode::GRAPHICS_RESOURCE_CREATION_FAILED, "Swapchain: surface null");
     }
 
+#if !defined(__EMSCRIPTEN__)
     mSurface.Present();
+#endif
 
     mCurrentView = nullptr;
     mCurrent.texture = nullptr;

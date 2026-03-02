@@ -65,7 +65,6 @@ if(EMSCRIPTEN)
     target_compile_definitions(${namespace}_gfx PUBLIC WEBGPU_BACKEND_EMSCRIPTEN)
     target_compile_options(${namespace}_gfx PUBLIC
         "--use-port=${_WGPU_PORT}"
-        "-sUSE_GLFW=3"
     )
     target_link_options(${namespace}_gfx PUBLIC
         "--use-port=${_WGPU_PORT}"

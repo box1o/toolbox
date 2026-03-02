@@ -48,8 +48,9 @@ result<void> ShaderImpl::Initialize() noexcept {
 
     for (const auto& path : mIncludePaths) {
         if (path.extension() != kIncludeExtension) {
-            auto error = fmt::format("Shader: include path '{}' must have a '{}' extension",
-                path.string(), kIncludeExtension);
+            auto error = std::string("Shader: include path '") + path.string()
+                       + "' must have a '" + std::string(kIncludeExtension)
+                       + "' extension";
             return err(ErrorCode::GRAPHICS_RESOURCE_CREATION_FAILED, std::move(error));
         }
     }
@@ -72,22 +73,23 @@ result<std::string> ShaderImpl::LoadStageSource(const ShaderStageInfo& stage) co
     }
 
     if (stage.path.empty()) {
-        auto error = fmt::format("Shader: stage '{}' is marked as file but has empty path", stage.name);
+        auto error = std::string("Shader: stage '") + stage.name
+                   + "' is marked as file but has empty path";
         return err(ErrorCode::GRAPHICS_RESOURCE_CREATION_FAILED, std::move(error));
     }
 
     std::ifstream file(stage.path, std::ios::in | std::ios::binary);
     if (!file.is_open()) {
-        auto error = fmt::format(
-            "Shader: failed to open file '{}' for stage '{}'", stage.path.string(), stage.name);
+        auto error = std::string("Shader: failed to open file '") + stage.path.string()
+                   + "' for stage '" + stage.name + "'";
         return err(ErrorCode::GRAPHICS_RESOURCE_CREATION_FAILED, std::move(error));
     }
 
     std::ostringstream ss;
     ss << file.rdbuf();
     if (file.fail() && !file.eof()) {
-        auto error = fmt::format(
-            "Shader: I/O error reading '{}' for stage '{}'", stage.path.string(), stage.name);
+        auto error = std::string("Shader: I/O error reading '") + stage.path.string()
+                   + "' for stage '" + stage.name + "'";
         return err(ErrorCode::GRAPHICS_RESOURCE_CREATION_FAILED, std::move(error));
     }
 

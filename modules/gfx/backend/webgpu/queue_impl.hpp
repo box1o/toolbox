@@ -9,17 +9,13 @@ public:
     explicit QueueImpl(ref<Device> device, const QueueDesc& desc);
     ~QueueImpl() override = default;
 
-    result<void> Submit(std::initializer_list<ref<CommandBuffer>> cmdBuffers) noexcept override;
+    result<void> Submit(const std::vector<ref<CommandBuffer>>& cmdBuffers) noexcept override;
 
-    // NOTE: Initialize
     result<void> Initialize() noexcept override;
 
 private:
-private:
     QueueDesc mDesc{};
-
     ref<Device> mDevice{nullptr};
-    // wgpu::Queue mQueue;
 };
 
 } // namespace ct::gfx::webgpu

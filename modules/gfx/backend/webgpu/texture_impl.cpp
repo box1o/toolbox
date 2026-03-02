@@ -34,7 +34,7 @@ result<void> TextureImpl::Initialize() noexcept {
     td.size = {mWidth, mHeight, 1};
     td.mipLevelCount = mDesc.mipLevels;
     td.sampleCount = 1;
-    td.format = ToWGPU(mDesc.format);
+    td.format = detail::ToWGPU(mDesc.format);
     td.usage = detail::ToWGPUUsage(mDesc.usage);
 
     mTexture = device->CreateTexture(&td);

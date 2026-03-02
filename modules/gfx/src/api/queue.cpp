@@ -1,5 +1,4 @@
 #include "../../include/toolbox/gfx/api/queue.hpp"
-
 #include "toolbox/base/errors/result.hpp"
 
 #if defined(USE_WEBGPU_BACKEND)
@@ -10,10 +9,11 @@ namespace ct::gfx {
 
 result<ref<Queue>> Queue::Create(ref<Device> device, const QueueDesc& desc) noexcept {
 #if defined(USE_WEBGPU_BACKEND)
-    auto queue = createRef<webgpu::QueueImpl>(device, desc);
+    auto queue = createRef<webgpu::QueueImpl>(std::move(device), desc);
     TRY_RETURN(queue->Initialize());
     return ok(std::move(queue));
 #else
+    (void)device;
     (void)desc;
     log::Critical("Queue creation failed: no graphics backend available");
     std::abort();

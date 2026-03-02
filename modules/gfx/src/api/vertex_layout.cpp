@@ -8,7 +8,6 @@ u32 VertexLayout::GetTotalAttributeCount() const noexcept {
     return count;
 }
 
-// --- Builder ---
 
 VertexLayout::BufferBuilder VertexLayout::Builder::AddBuffer(VertexStepMode stepMode) {
     return BufferBuilder{*this, stepMode};
@@ -20,7 +19,6 @@ VertexLayout VertexLayout::Builder::Build() noexcept {
     return layout;
 }
 
-// --- BufferBuilder ---
 
 VertexLayout::BufferBuilder::BufferBuilder(Builder& parent, VertexStepMode stepMode)
     : mParent(parent) {

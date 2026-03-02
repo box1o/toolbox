@@ -11,7 +11,9 @@ public:
     explicit PipelineImpl(ref<Device> device, const PipelineDesc& desc);
     ~PipelineImpl() override = default;
 
-    [[nodiscard]] void* GetNativePipelineHandle() noexcept override { return static_cast<void*>(&mPipeline); }
+    [[nodiscard]] void* GetNativePipelineHandle() noexcept override {
+        return static_cast<void*>(&mPipeline);
+    }
 
     void SetShader(ref<Shader> shader) { mShader = std::move(shader); }
     void SetVertexLayout(const VertexLayout& layout) { mVertexLayout = layout; }

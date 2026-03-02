@@ -250,6 +250,18 @@ constexpr std::string StageFlagsToString(ShaderStage flags) noexcept {
     if (out.empty()) out = "none";
     return out;
 }
-// clang-format on
+
+inline wgpu::PresentMode ToWGPU(PresentMode pm) noexcept {
+    switch (pm) {
+        case PresentMode::Immediate: return wgpu::PresentMode::Immediate;
+        case PresentMode::Mailbox:   return wgpu::PresentMode::Mailbox;
+        case PresentMode::VSync:     return wgpu::PresentMode::Fifo;
+        default:                     return wgpu::PresentMode::Fifo;
+    }
+}
+
+// clang-format off
+
+
 
 } // namespace ct::gfx::detail

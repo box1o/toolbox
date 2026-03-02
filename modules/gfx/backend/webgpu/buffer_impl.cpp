@@ -5,6 +5,7 @@
 
 #include <limits>
 #include <string>
+#include <span>
 
 namespace ct::gfx::webgpu {
 

@@ -32,16 +32,12 @@ bool Application::Update() {
 }
 
 void Application::OnEvent(events::EventBase& event) {
+    mRenderer->OnEvent(event);
+
     events::EventDispatcher dispatcher(event);
-
-    dispatcher.Dispatch<events::WindowResizeEvent>([&](const events::WindowResizeEvent& ev) {
-        log::Info("Event received: {}", events::ToString(ev));
-        mRenderer->OnResize(ev.width, ev.height);
-        return false;
-    });
-
     dispatcher.Dispatch<events::KeyPressedEvent>([&](const events::KeyPressedEvent& ev) {
-        log::Info("Event received: {}", events::ToString(ev));
+        // log::Info("Event received: {}", events::ToString(ev));
+        // log::Info("{}", static_cast<char>(ev.key));
         return true;
     });
 

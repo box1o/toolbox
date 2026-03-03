@@ -7,7 +7,12 @@
 #include "../api/shader.hpp"
 #include "../api/pipeline.hpp"
 #include "../api/buffer.hpp"
+#include "../api/bind_group.hpp"
 #include "../api/command_encoder.hpp"
+#include "../events/base.hpp"
+#include "../events/dispatcher.hpp"
+#include "../events/input/events.hpp"
+#include "../events/window/events.hpp"
 #include "../window/window.hpp"
 
 namespace ct::gfx {
@@ -31,11 +36,10 @@ public:
     void BeginFrame(f32 deltaTime);
     void EndFrame();
 
+    void OnEvent(events::EventBase& event) noexcept;
     void OnResize(u32 width, u32 height) noexcept;
 
 private:
-    result<void> CreateTriangleResources();
-
     ref<Window> mWindow{nullptr};
     ref<Device> mDevice{nullptr};
     ref<Swapchain> mSwapchain{nullptr};
@@ -44,9 +48,20 @@ private:
     ref<Shader> mShader{nullptr};
     ref<Pipeline> mPipeline{nullptr};
     ref<Buffer> mVertexBuffer{nullptr};
+    ref<Buffer> mIndexBuffer{nullptr};
+    ref<Buffer> mUniformBuffer{nullptr};
+    ref<BindGroup> mSceneBindGroup{nullptr};
 
     Frame mCurrentFrame{};
     bool mFrameActive{false};
+    u32 mIndexCount{0};
+
+    f32 mOrbitYaw{0.7f};
+    f32 mOrbitPitch{0.35f};
+    f32 mOrbitDistance{3.0f};
+    bool mOrbitDragging{false};
+    f32 mLastMouseX{0.0f};
+    f32 mLastMouseY{0.0f};
 };
 
 } // namespace ct::gfx

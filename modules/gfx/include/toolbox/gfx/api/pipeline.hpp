@@ -85,6 +85,7 @@ public:
         Builder& SetDepthFormat(TextureFormat format);
         Builder& SetStencilTest(bool enable);
         Builder& SetColorTarget(TextureFormat format, const BlendState& blend = {});
+        Builder& AddColorTarget(TextureFormat format, const BlendState& blend = {});
         Builder& SetBlendEnabled(bool enable);
         Builder& SetBlendSrcColor(BlendFactor factor);
         Builder& SetBlendDstColor(BlendFactor factor);
@@ -108,7 +109,7 @@ public:
 
         RasterizerState mRasterizer{};
         DepthStencilState mDepthStencil{};
-        ColorTargetState mColorTarget{};
+        std::vector<ColorTargetState> mColorTargets{};
     };
 
     [[nodiscard]] static Builder Create(ref<Device> device, const PipelineDesc& desc = {}) noexcept {

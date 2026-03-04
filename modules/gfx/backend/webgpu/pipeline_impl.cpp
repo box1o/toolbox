@@ -161,29 +161,38 @@ result<void> PipelineImpl::Initialize() noexcept {
         depthStencilState.depthCompare = detail::ToWGPU(mDepthStencil.depthCompareOp);
     }
 
-    //NOTE: Blend state
-    wgpu::BlendState blendState{};
-    if (mColorTarget.blend.enable) {
-        blendState.color.srcFactor = detail::ToWGPU(mColorTarget.blend.srcColor);
-        blendState.color.dstFactor = detail::ToWGPU(mColorTarget.blend.dstColor);
-        blendState.color.operation = detail::ToWGPU(mColorTarget.blend.colorOp);
-        blendState.alpha.srcFactor = detail::ToWGPU(mColorTarget.blend.srcAlpha);
-        blendState.alpha.dstFactor = detail::ToWGPU(mColorTarget.blend.dstAlpha);
-        blendState.alpha.operation = detail::ToWGPU(mColorTarget.blend.alphaOp);
+    std::vector<ColorTargetState> colorTargets = mColorTargets;
+    if (colorTargets.empty()) {
+        colorTargets.push_back(ColorTargetState{});
     }
 
-    //NOTE: Color target
-    wgpu::ColorTargetState colorTarget{};
-    colorTarget.format = detail::ToWGPU(mColorTarget.format);
-    colorTarget.blend = mColorTarget.blend.enable ? &blendState : nullptr;
-    colorTarget.writeMask = wgpu::ColorWriteMask::All;
+    std::vector<wgpu::BlendState> blendStates(colorTargets.size());
+    std::vector<wgpu::ColorTargetState> nativeColorTargets(colorTargets.size());
+    for (size_t i = 0; i < colorTargets.size(); ++i) {
+        const auto& target = colorTargets[i];
+        auto& nativeBlend = blendStates[i];
+        auto& nativeTarget = nativeColorTargets[i];
+
+        if (target.blend.enable) {
+            nativeBlend.color.srcFactor = detail::ToWGPU(target.blend.srcColor);
+            nativeBlend.color.dstFactor = detail::ToWGPU(target.blend.dstColor);
+            nativeBlend.color.operation = detail::ToWGPU(target.blend.colorOp);
+            nativeBlend.alpha.srcFactor = detail::ToWGPU(target.blend.srcAlpha);
+            nativeBlend.alpha.dstFactor = detail::ToWGPU(target.blend.dstAlpha);
+            nativeBlend.alpha.operation = detail::ToWGPU(target.blend.alphaOp);
+        }
+
+        nativeTarget.format = detail::ToWGPU(target.format);
+        nativeTarget.blend = target.blend.enable ? &nativeBlend : nullptr;
+        nativeTarget.writeMask = wgpu::ColorWriteMask::All;
+    }
 
     //NOTE: Fragment state
     wgpu::FragmentState fragmentState{};
     fragmentState.module = *shaderModule;
     fragmentState.entryPoint = wgpu::StringView{"fs_main", 7};
-    fragmentState.targetCount = 1;
-    fragmentState.targets = &colorTarget;
+    fragmentState.targetCount = nativeColorTargets.size();
+    fragmentState.targets = nativeColorTargets.data();
 
     //NOTE: Multisample state
     wgpu::MultisampleState multisampleState{};

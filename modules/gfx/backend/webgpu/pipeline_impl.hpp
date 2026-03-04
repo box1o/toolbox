@@ -20,7 +20,7 @@ public:
     void SetBindGroupLayouts(const std::vector<BindGroupLayout>& layouts) { mBindGroupLayouts = layouts; }
     void SetRasterizerState(const RasterizerState& state) { mRasterizer = state; }
     void SetDepthStencilState(const DepthStencilState& state) { mDepthStencil = state; }
-    void SetColorTargetState(const ColorTargetState& state) { mColorTarget = state; }
+    void SetColorTargetStates(const std::vector<ColorTargetState>& states) { mColorTargets = states; }
 
     result<void> Initialize() noexcept override;
 
@@ -36,7 +36,7 @@ private:
 
     RasterizerState mRasterizer{};
     DepthStencilState mDepthStencil{};
-    ColorTargetState mColorTarget{};
+    std::vector<ColorTargetState> mColorTargets{};
 
     wgpu::RenderPipeline mPipeline{nullptr};
 };

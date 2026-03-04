@@ -14,7 +14,7 @@ result<ref<Pipeline>> Pipeline::Builder::Build() noexcept {
     pipeline->SetBindGroupLayouts(mBindGroupLayouts);
     pipeline->SetRasterizerState(mRasterizer);
     pipeline->SetDepthStencilState(mDepthStencil);
-    pipeline->SetColorTargetState(mColorTarget);
+    pipeline->SetColorTargetStates(mColorTargets);
     TRY_RETURN(pipeline->Initialize());
     return ok(std::move(pipeline));
 #else
@@ -36,19 +36,31 @@ Pipeline::Builder& Pipeline::Builder::SetDepthWrite(bool enable)                
 Pipeline::Builder& Pipeline::Builder::SetDepthCompare(CompareOp op)                     { mDepthStencil.depthCompareOp = op; return *this; }
 Pipeline::Builder& Pipeline::Builder::SetDepthFormat(TextureFormat format)              { mDepthStencil.depthFormat = format; return *this; }
 Pipeline::Builder& Pipeline::Builder::SetStencilTest(bool enable)                       { mDepthStencil.stencilEnable = enable; return *this; }
-Pipeline::Builder& Pipeline::Builder::SetBlendEnabled(bool enable)                      { mColorTarget.blend.enable = enable; return *this; }
-Pipeline::Builder& Pipeline::Builder::SetBlendSrcColor(BlendFactor factor)              { mColorTarget.blend.srcColor = factor; return *this; }
-Pipeline::Builder& Pipeline::Builder::SetBlendDstColor(BlendFactor factor)              { mColorTarget.blend.dstColor = factor; return *this; }
-Pipeline::Builder& Pipeline::Builder::SetBlendColorOp(BlendOp op)                       { mColorTarget.blend.colorOp = op; return *this; }
-Pipeline::Builder& Pipeline::Builder::SetBlendSrcAlpha(BlendFactor factor)              { mColorTarget.blend.srcAlpha = factor; return *this; }
-Pipeline::Builder& Pipeline::Builder::SetBlendDstAlpha(BlendFactor factor)              { mColorTarget.blend.dstAlpha = factor; return *this; }
-Pipeline::Builder& Pipeline::Builder::SetBlendAlphaOp(BlendOp op)                       { mColorTarget.blend.alphaOp = op; return *this; }
+Pipeline::Builder& Pipeline::Builder::SetBlendEnabled(bool enable)                      { if (mColorTargets.empty()) mColorTargets.push_back({}); mColorTargets.back().blend.enable = enable; return *this; }
+Pipeline::Builder& Pipeline::Builder::SetBlendSrcColor(BlendFactor factor)              { if (mColorTargets.empty()) mColorTargets.push_back({}); mColorTargets.back().blend.srcColor = factor; return *this; }
+Pipeline::Builder& Pipeline::Builder::SetBlendDstColor(BlendFactor factor)              { if (mColorTargets.empty()) mColorTargets.push_back({}); mColorTargets.back().blend.dstColor = factor; return *this; }
+Pipeline::Builder& Pipeline::Builder::SetBlendColorOp(BlendOp op)                       { if (mColorTargets.empty()) mColorTargets.push_back({}); mColorTargets.back().blend.colorOp = op; return *this; }
+Pipeline::Builder& Pipeline::Builder::SetBlendSrcAlpha(BlendFactor factor)              { if (mColorTargets.empty()) mColorTargets.push_back({}); mColorTargets.back().blend.srcAlpha = factor; return *this; }
+Pipeline::Builder& Pipeline::Builder::SetBlendDstAlpha(BlendFactor factor)              { if (mColorTargets.empty()) mColorTargets.push_back({}); mColorTargets.back().blend.dstAlpha = factor; return *this; }
+Pipeline::Builder& Pipeline::Builder::SetBlendAlphaOp(BlendOp op)                       { if (mColorTargets.empty()) mColorTargets.push_back({}); mColorTargets.back().blend.alphaOp = op; return *this; }
 // clang-format on
 
 Pipeline::Builder& Pipeline::Builder::SetColorTarget(
     TextureFormat format, const BlendState& blend) {
-    mColorTarget.format = format;
-    mColorTarget.blend = blend;
+    mColorTargets.clear();
+    ColorTargetState target{};
+    target.format = format;
+    target.blend = blend;
+    mColorTargets.push_back(target);
+    return *this;
+}
+
+Pipeline::Builder& Pipeline::Builder::AddColorTarget(
+    TextureFormat format, const BlendState& blend) {
+    ColorTargetState target{};
+    target.format = format;
+    target.blend = blend;
+    mColorTargets.push_back(target);
     return *this;
 }
 

@@ -3,19 +3,15 @@ struct SceneUniform {
 };
 
 @group(0) @binding(0) var<uniform> scene : SceneUniform;
-@group(0) @binding(1) var tex0 : texture_2d<f32>;
-@group(0) @binding(2) var samp0 : sampler;
 
 struct VertexIn {
     @location(0) pos : vec3f,
-    @location(1) nrm : vec3f,
-    @location(2) uv : vec2f,
+    @location(1) color : vec4f,
 };
 
 struct VertexOut {
     @builtin(position) clip_pos : vec4f,
-    @location(0) nrm : vec3f,
-    @location(1) uv : vec2f,
+    @location(0) color : vec4f,
 };
 
 struct FragmentOut {
@@ -27,18 +23,14 @@ struct FragmentOut {
 fn vs_main(in: VertexIn) -> VertexOut {
     var out : VertexOut;
     out.clip_pos = scene.mvp * vec4f(in.pos, 1.0);
-    out.nrm = in.nrm;
-    out.uv = in.uv;
+    out.color = in.color;
     return out;
 }
 
 @fragment
 fn fs_main(in: VertexOut) -> FragmentOut {
     var out : FragmentOut;
-    let n = normalize(in.nrm);
-
-    out.color = textureSample(tex0, samp0, in.uv);
-    out.normal = vec4f(n * 0.5 + 0.5, 1.0);
-
+    out.color = in.color;
+    out.normal = vec4f(0.5, 0.5, 1.0, 1.0);
     return out;
 }

@@ -1,3 +1,4 @@
+
 #include "GLFW/glfw3.h"
 #include "toolbox/gfx/api/bind_group_layout.hpp"
 #include "toolbox/gfx/api/command_encoder.hpp"
@@ -139,8 +140,7 @@ int main(int argc, char* argv[]) {
             .SetColorTarget(swapchain->GetColorFormat())
             .Build());
 
-    auto vbo =
-        TRY(gfx::Buffer::CreateVertexBuffer(device, kVertices.size() * sizeof(StaticVertex)));
+    auto vbo = TRY(gfx::Buffer::CreateVertexBuffer(device, kVertices.size() * sizeof(StaticVertex)));
     TRY(vbo->Update(0, kVertices.data(), kVertices.size() * sizeof(StaticVertex)));
 
     auto ibo = TRY(gfx::Buffer::CreateIndexBuffer(device, kIndices.size() * sizeof(u16)));

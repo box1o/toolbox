@@ -46,9 +46,10 @@ void DeviceImpl::OnDeviceLost(
         return;
     }
     if (reason == wgpu::DeviceLostReason::Destroyed) {
-        log::Info("[wgpu] Device lost: device was destroyed");
+        //NOTE: Ignore this message
         return;
     }
+
     log::Warn("[wgpu] Device lost: {}", detail::ToString(message));
 }
 

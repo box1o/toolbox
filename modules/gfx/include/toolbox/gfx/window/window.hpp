@@ -17,7 +17,7 @@ struct WindowInfo {
     std::string title{"toolbox"};
     u32 width{1280};
     u32 height{720};
-    bool floating{false};
+    bool floating{true};
     bool fullscreen{false};
     bool resizable{true};
     bool decorated{true};

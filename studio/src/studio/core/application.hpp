@@ -3,6 +3,7 @@
 #include <toolbox/base/base.hpp>
 #include <toolbox/gfx/gfx.hpp>
 #include <toolbox/gfx/renderer/renderer.hpp>
+#include <toolbox/gfx/camera/editor_camera.hpp>
 
 namespace ct::studio {
 
@@ -12,12 +13,12 @@ public:
     ~Application();
 
     bool Update();
-
-    void OnEvent(ct::events::EventBase& event);
+    void OnEvent(events::EventBase& event);
 
 private:
-    scope<gfx::Renderer> mRenderer{nullptr};
     ref<gfx::Window> mWindow{nullptr};
+    scope<gfx::Renderer> mRenderer{nullptr};
+    EditorCamera mEditorCamera;
 };
 
 } // namespace ct::studio

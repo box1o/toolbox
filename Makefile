@@ -57,8 +57,8 @@ build-web: configure-web
 
 web: build-web
 	@echo "→ Running web (emrun)..."
-	@emrun --no_browser --hostname localhost --port $(WEB_PORT) build-web/studio.html
-	@echo "Open: http://localhost:$(WEB_PORT)/studio.html"
+	@emrun --no_browser --hostname 0.0.0.0 --port $(WEB_PORT) build-web/studio.html
+	@echo "Open: http://<your-local-ip>:$(WEB_PORT)/studio.html"
 
 clean:
 	@rm -rf $(BUILD_DIR) $(WEB_BUILD_DIR)

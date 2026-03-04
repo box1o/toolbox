@@ -78,4 +78,60 @@ result<ref<TextureView>> TextureImpl::CreateView(const TextureViewDesc& desc) no
     return ok(createRef<TextureViewImpl>(view));
 };
 
+result<void> TextureImpl::Update(const void* data, u64 numBytes) noexcept {
+    if (!mTexture) {
+        return err(ErrorCode::INVALID_STATE, "Texture: not initialized");
+    }
+    if (!data) {
+        return err(ErrorCode::INVALID_ARGUMENT, "Texture: data is null");
+    }
+    if (numBytes == 0) {
+        return err(ErrorCode::INVALID_ARGUMENT, "Texture: numBytes is 0");
+    }
+    if (!HasFlag(mDesc.usage, TextureUsageFlags::CopyDst)) {
+        return err(ErrorCode::INVALID_STATE, "Texture: texture missing CopyDst usage");
+    }
+
+    auto queue = static_cast<wgpu::Queue*>(mDevice->GetNativeQueueHandle());
+    if (!queue || !*queue) {
+        return err(ErrorCode::INVALID_STATE, "Texture: failed to acquire queue handle");
+    }
+
+    // For now, uploads are supported for 4-byte-per-pixel color formats.
+    u32 bytesPerPixel = 0;
+    switch (mDesc.format) {
+    case TextureFormat::RGBA8Unorm:
+    case TextureFormat::RGBA8UnormSrgb:
+    case TextureFormat::BGRA8Unorm:
+    case TextureFormat::BGRA8UnormSrgb:
+        bytesPerPixel = 4;
+        break;
+    default:
+        return err(ErrorCode::INVALID_ARGUMENT,
+            "Texture: Update currently supports RGBA8/BGRA8 formats only");
+    }
+
+    const u32 unalignedBpr = mWidth * bytesPerPixel;
+    const u32 alignedBpr = (unalignedBpr + 255u) & ~255u;
+    const u64 requiredBytes = static_cast<u64>(alignedBpr) * static_cast<u64>(mHeight);
+    if (numBytes < requiredBytes) {
+        return err(ErrorCode::OUT_OF_RANGE, "Texture: upload buffer is too small");
+    }
+
+    wgpu::TexelCopyTextureInfo dst{};
+    dst.texture = mTexture;
+    dst.mipLevel = 0;
+    dst.origin = {0, 0, 0};
+    dst.aspect = wgpu::TextureAspect::All;
+
+    wgpu::TexelCopyBufferLayout srcLayout{};
+    srcLayout.offset = 0;
+    srcLayout.bytesPerRow = alignedBpr;
+    srcLayout.rowsPerImage = mHeight;
+
+    wgpu::Extent3D copySize{mWidth, mHeight, 1};
+    queue->WriteTexture(&dst, data, static_cast<size_t>(requiredBytes), &srcLayout, &copySize);
+    return ok();
+}
+
 } // namespace ct::gfx::webgpu
